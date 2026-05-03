@@ -1,6 +1,6 @@
 export default function DeadlinesPage() {
   return (
-    <main className="min-h-screen px-4 sm:px-8 py-6 max-w-6xl mx-auto">
+    <main className="min-h-screen px-4 sm:px-8 py-6 max-w-4xl mx-auto">
       <header className="flex items-end justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">DEADLINES</h1>
