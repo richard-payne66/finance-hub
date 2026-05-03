@@ -80,16 +80,14 @@ export default async function ReceiptsPage() {
 
   return (
     <main className="min-h-screen px-4 sm:px-8 py-6 max-w-3xl mx-auto">
-      <header className="mb-6 flex items-end justify-between">
+      <header className="flex items-end justify-between gap-4 mb-8">
         <div>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-muted/60">
-            Receipts
-          </p>
-          <h1 className="text-xl font-black tracking-tight">Pending queue</h1>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">RECEIPTS</h1>
+          <p className="text-xs text-muted/70 mt-1">Review extracted receipts before pushing to FreeAgent</p>
         </div>
         <Link
           href="/capture"
-          className="rounded-full px-4 py-2 bg-primary text-black text-[10px] font-bold uppercase tracking-widest hover:bg-primary/80 transition-colors"
+          className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full border border-white/15 text-muted hover:bg-primary hover:text-background hover:border-primary transition-all"
         >
           + Capture
         </Link>

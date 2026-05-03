@@ -72,11 +72,9 @@ export default function CapturePage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
-      <p className="text-[9px] font-bold uppercase tracking-widest text-muted/60 mb-2">
-        Capture
-      </p>
-      <h1 className="text-3xl font-black tracking-tight mb-1">Snap a receipt</h1>
-      <p className="text-xs text-muted/60 mb-10">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-muted/40 mb-2">Capture</p>
+      <h1 className="text-2xl font-black tracking-tight text-foreground mb-1">SNAP A RECEIPT</h1>
+      <p className="text-xs text-muted/70 mb-10">
         Photo or PDF — Claude extracts all the fields automatically.
       </p>
 
