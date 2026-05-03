@@ -4,9 +4,9 @@
 
 set -euo pipefail
 
-PROJECT_DIR="/Volumes/MACBOOK_NVME/Mike&Payne Dropbox/Richard Payne/02_PERSONAL_BRAND/15_FINANCE-HUB/finance-hub"
+PROJECT_DIR="/Volumes/MACBOOK_NVME/Mike&Payne Dropbox/Richard Payne/02_PERSONAL_BRAND/06_PAYNE-BOT/finance-hub"
 BACKUP_DIR="${PROJECT_DIR}/.claude/backups"
-ENCODED="-Volumes-MACBOOK-NVME-Mike-Payne-Dropbox-Richard-Payne-02-PERSONAL-BRAND-15-FINANCE-HUB-finance-hub"
+ENCODED="-Volumes-MACBOOK-NVME-Mike-Payne-Dropbox-Richard-Payne-02-PERSONAL-BRAND-06-PAYNE-BOT-finance-hub"
 TRANSCRIPT_DIR="${HOME}/.claude/projects/${ENCODED}"
 
 mkdir -p "${BACKUP_DIR}"
