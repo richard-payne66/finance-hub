@@ -139,12 +139,14 @@ export async function POST(req: NextRequest) {
         source,
         file_sha256: hash,
         supplier: extracted.supplier,
+        description: extracted.description,
         supply_date: extracted.supply_date,
         currency: extracted.currency,
         gross_total: extracted.gross_total,
         net_total: extracted.net_total,
         vat_total: extracted.vat_total,
         vat_rate: extracted.vat_rate,
+        payment_method: extracted.payment_method,
         category_url: extracted.suggested_freeagent_category_url,
         category_name: extracted.suggested_freeagent_category_name,
         line_items: extracted.line_items,
@@ -152,7 +154,6 @@ export async function POST(req: NextRequest) {
         model_confidence: extracted.model_confidence,
         low_confidence_fields: extracted.low_confidence_fields,
         extracted_json: extracted,
-        // Store the storage key so we can generate fresh signed URLs later
         receipt_image_url: uploadError ? null : storageKey,
         notes: extracted.notes,
       })

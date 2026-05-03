@@ -19,12 +19,14 @@ export type Receipt = {
   file_sha256: string;
 
   supplier: string | null;
+  description: string | null;
   supply_date: string | null; // ISO YYYY-MM-DD
   currency: string | null;
   gross_total: number | null;
   net_total: number | null;
   vat_total: number | null;
   vat_rate: string | null;
+  payment_method: "card" | "cash" | "bank_transfer" | "direct_debit" | null;
   category_url: string | null;
   category_name: string | null;
   line_items: ReceiptLineItem[] | null;

@@ -142,7 +142,7 @@ function ReceiptCard({ receipt: r }: { receipt: Receipt & { thumbUrl: string | n
       </a>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="flex items-start justify-between gap-2 mb-0.5">
           <p className="font-bold text-sm truncate">
             {r.supplier ?? <span className="text-muted/40 italic font-normal">Unknown supplier</span>}
           </p>
@@ -151,10 +151,15 @@ function ReceiptCard({ receipt: r }: { receipt: Receipt & { thumbUrl: string | n
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted/60 mb-2">
+        {r.description && (
+          <p className="text-xs text-muted/70 mb-1.5 truncate">{r.description}</p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted/50 mb-2">
           <span>{fmtDate(r.supply_date)}</span>
-          {r.vat_rate && <><span className="text-white/10">·</span><span>VAT {r.vat_rate}</span></>}
-          {r.category_name && <><span className="text-white/10">·</span><span className="truncate">{r.category_name}</span></>}
+          {r.vat_rate && <><span className="text-white/8">·</span><span>VAT {r.vat_rate}</span></>}
+          {r.payment_method && <><span className="text-white/8">·</span><span>{r.payment_method}</span></>}
+          {r.category_name && <><span className="text-white/8">·</span><span className="truncate">{r.category_name}</span></>}
         </div>
 
         <div className="flex items-center gap-2 text-sm font-bold">

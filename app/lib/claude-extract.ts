@@ -7,12 +7,14 @@ import type {
 
 export type ClaudeReceiptData = {
   supplier: string | null;
+  description: string | null;
   supply_date: string | null;
   currency: string | null;
   gross_total: number | null;
   net_total: number | null;
   vat_total: number | null;
   vat_rate: string | null;
+  payment_method: "card" | "cash" | "bank_transfer" | "direct_debit" | null;
   line_items: Array<{
     description: string;
     quantity?: number | null;
@@ -40,12 +42,17 @@ const RECEIPT_SCHEMA = {
   type: "object",
   properties: {
     supplier: { type: ["string", "null"] },
+    description: { type: ["string", "null"] },
     supply_date: { type: ["string", "null"] },
     currency: { type: ["string", "null"] },
     gross_total: { type: ["number", "null"] },
     net_total: { type: ["number", "null"] },
     vat_total: { type: ["number", "null"] },
     vat_rate: { type: ["string", "null"] },
+    payment_method: {
+      type: ["string", "null"],
+      enum: ["card", "cash", "bank_transfer", "direct_debit", null],
+    },
     line_items: {
       type: "array",
       items: {
@@ -70,12 +77,14 @@ const RECEIPT_SCHEMA = {
   },
   required: [
     "supplier",
+    "description",
     "supply_date",
     "currency",
     "gross_total",
     "net_total",
     "vat_total",
     "vat_rate",
+    "payment_method",
     "line_items",
     "suggested_freeagent_category_url",
     "suggested_freeagent_category_name",
@@ -99,7 +108,9 @@ Rules:
 - suggested_freeagent_category_url must be chosen from: {{categories_json}}
 - vat_rate: "20%" standard UK, "0%" zero-rated, "Exempt", "Out of Scope" for non-UK, "Auto" if uncertain
 - is_business_card: true if business card/account, false if personal/cash, null if unclear
-- model_confidence: 0.0–1.0 overall confidence`;
+- model_confidence: 0.0–1.0 overall confidence
+- description: concise expense label for the FreeAgent expense list, max 60 chars — what was purchased, not who sold it. Examples: "Adobe Creative Cloud – monthly subscription", "Train to London Paddington", "Team lunch", "AWS usage – April". Do NOT just repeat the supplier name.
+- payment_method: "card" if paid by any card (business or personal), "cash" if cash, "bank_transfer" if BACS/wire, "direct_debit" if DD shown, null if unclear. This determines whether the spend is already in the bank feed.`;
 
 // ── Client (lazy) ─────────────────────────────────────────────────────────────
 
