@@ -45,12 +45,14 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. Normalise to a MIME Claude accepts ─────────────────────────────────
+    // storageMime tracks what we actually end up storing (may differ from
+    // originalMime if sharp converts an oversized image to JPEG).
     let claudeMime: SupportedMimeType;
+    let storageMime: string = originalMime;
 
     if (originalMime === "application/pdf") {
       claudeMime = "application/pdf";
     } else {
-      // Images: resize if needed, output as JPEG for consistency.
       const img = sharp(buffer);
       const meta = await img.metadata();
       const longEdge = Math.max(meta.width ?? 0, meta.height ?? 0);
@@ -65,23 +67,30 @@ export async function POST(req: NextRequest) {
           .jpeg({ quality: 88 })
           .toBuffer();
         claudeMime = "image/jpeg";
+        storageMime = "image/jpeg";
       } else if (originalMime === "image/png") {
         claudeMime = "image/png";
       } else if (originalMime === "image/webp") {
         claudeMime = "image/webp";
       } else {
-        // JPEG or any HEIC that slipped through client-side conversion
         claudeMime = "image/jpeg";
+        storageMime = "image/jpeg";
       }
     }
 
-    // ── 3. Upload original to Supabase Storage ────────────────────────────────
-    const ext = originalMime === "application/pdf" ? "pdf" : "jpg";
+    // ── 3. Upload to Supabase Storage ─────────────────────────────────────────
+    const extMap: Record<string, string> = {
+      "application/pdf": "pdf",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+    };
+    const ext = extMap[storageMime] ?? "jpg";
     const storageKey = `${Date.now()}-${hash.slice(0, 8)}.${ext}`;
 
     const { error: uploadError } = await db()
       .storage.from("receipts")
-      .upload(storageKey, buffer, { contentType: originalMime, upsert: false });
+      .upload(storageKey, buffer, { contentType: storageMime, upsert: false });
 
     if (uploadError) {
       // Non-fatal — log and continue; the image thumb will just be missing.

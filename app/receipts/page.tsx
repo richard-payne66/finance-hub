@@ -121,17 +121,25 @@ function ReceiptCard({ receipt: r }: { receipt: Receipt & { thumbUrl: string | n
   const hasDupeNote =
     r.notes?.toLowerCase().includes("duplicate") ||
     r.notes?.toLowerCase().includes("dupe");
+  const viewUrl = r.receipt_image_url ? `/api/receipt/${r.id}/image` : null;
 
   return (
     <article className="bg-surface border border-white/8 rounded-xl p-4 sm:p-5 flex gap-4 items-start hover:border-white/15 transition-all">
-      <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-surface-light border border-white/8 flex items-center justify-center">
+      {/* Thumbnail — clicks open the full file in a new tab */}
+      <a
+        href={viewUrl ?? undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="View receipt"
+        className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-surface-light border border-white/8 flex items-center justify-center transition-all ${viewUrl ? "hover:border-white/30 cursor-pointer" : "cursor-default"}`}
+      >
         {r.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={r.thumbUrl} alt={r.supplier ?? "Receipt"} className="w-full h-full object-cover" />
         ) : (
           <span className="text-xl">🧾</span>
         )}
-      </div>
+      </a>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
@@ -169,8 +177,8 @@ function ReceiptCard({ receipt: r }: { receipt: Receipt & { thumbUrl: string | n
           </p>
         )}
 
-        {r.status === "pending" && (
-          <div className="flex gap-2 mt-3">
+        <div className="flex gap-2 mt-3 flex-wrap">
+          {r.status === "pending" && (<>
             <button disabled title="FreeAgent push — Phase 4"
               className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 disabled:opacity-40 disabled:cursor-default">
               Approve
@@ -179,8 +187,14 @@ function ReceiptCard({ receipt: r }: { receipt: Receipt & { thumbUrl: string | n
               className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/10 text-muted disabled:opacity-40 disabled:cursor-default">
               Reject
             </button>
-          </div>
-        )}
+          </>)}
+          {viewUrl && (
+            <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+              className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/10 text-muted hover:border-white/20 hover:text-foreground transition-all">
+              View ↗
+            </a>
+          )}
+        </div>
       </div>
     </article>
   );
