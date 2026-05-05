@@ -74,6 +74,7 @@ export type DocumentCategory =
   | "Directors Loan"
   | "P60"
   | "VAT Returns"
+  | "Bank Statement"
   | "Other";
 
 export type Document = {
