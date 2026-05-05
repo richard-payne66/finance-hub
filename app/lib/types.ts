@@ -84,6 +84,7 @@ export type Document = {
   file_url: string;
   uploaded_at: string;
   notes: string | null;
+  checklist_item_id: string | null;
 };
 
 export type TaxType =

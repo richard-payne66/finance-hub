@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that never require a session.
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/health"];
+// /share/ is the accountant-facing read-only page — token-gated at the page level.
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/health", "/share/"];
 
 // Paths that can bypass session auth if a valid x-api-key header is present.
 const API_KEY_PATHS = ["/api/process-receipt"];

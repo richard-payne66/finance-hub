@@ -1,5 +1,6 @@
 import BankStatementsChecklist from "@/app/components/BankStatementsChecklist";
 import DocumentChecklist from "@/app/components/DocumentChecklist";
+import ShareLink from "@/app/components/ShareLink";
 
 export default function SetupPage() {
   return (
@@ -11,7 +12,8 @@ export default function SetupPage() {
         </div>
       </header>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-10">
+        <ShareLink />
         <BankStatementsChecklist />
         <DocumentChecklist />
       </div>
