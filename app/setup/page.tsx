@@ -1,3 +1,5 @@
+import BankStatementsChecklist from "@/app/components/BankStatementsChecklist";
+
 export default function SetupPage() {
   return (
     <main className="min-h-screen px-4 sm:px-8 py-6 max-w-4xl mx-auto">
@@ -10,7 +12,11 @@ export default function SetupPage() {
       </header>
 
       <section className="mb-8">
-        <p className="text-[9px] text-muted uppercase tracking-widest font-bold mb-3">Checklist</p>
+        <BankStatementsChecklist />
+      </section>
+
+      <section className="mb-8">
+        <p className="text-[9px] text-muted uppercase tracking-widest font-bold mb-3">Onboarding Checklist</p>
         <div className="border border-dashed border-white/8 rounded-xl p-10 text-center">
           <p className="text-[9px] text-muted/50 uppercase tracking-widest font-bold">
             Step-by-step onboarding with Claude explainer — Phase 5
