@@ -13,6 +13,9 @@ const LINKS = [
 export default function Nav() {
   const path = usePathname();
 
+  // No nav chrome on the login page — it's a full-screen gate.
+  if (path === "/login") return null;
+
   return (
     <nav className="flex gap-1 flex-wrap px-4 sm:px-8 pt-5 pb-2 max-w-6xl mx-auto">
       {LINKS.map((l) => {
