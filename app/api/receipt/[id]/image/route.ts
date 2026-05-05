@@ -34,5 +34,10 @@ export async function GET(
     return NextResponse.json({ error: "Could not generate signed URL." }, { status: 500 });
   }
 
-  return NextResponse.redirect(signed.signedUrl);
+  // Tell the browser to reuse this redirect for up to 58 minutes.
+  // The signed URL is valid for 3600s; 3500s gives a comfortable safety margin.
+  // This means clicking "View" a second time costs zero Vercel invocations.
+  return NextResponse.redirect(signed.signedUrl, {
+    headers: { "Cache-Control": "private, max-age=3500" },
+  });
 }

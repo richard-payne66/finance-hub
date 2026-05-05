@@ -12,6 +12,32 @@ export const maxDuration = 60;
 
 const MAX_LONG_EDGE = 2576; // px — above this sharp resizes before sending to Claude
 
+// ── In-memory categories cache ────────────────────────────────────────────────
+// Categories change at most once per FreeAgent sync (Phase 6). Caching for 1h
+// avoids a DB round-trip on every single receipt upload.
+type CategoriesCache = { json: string; expiresAt: number };
+let _categoriesCache: CategoriesCache | null = null;
+
+async function getCategoriesJson(): Promise<string> {
+  const now = Date.now();
+  if (_categoriesCache && now < _categoriesCache.expiresAt) {
+    return _categoriesCache.json;
+  }
+  const { data } = await db()
+    .from("freeagent_categories")
+    .select("category_url, description, category_type")
+    .order("usage_count", { ascending: false });
+  const json = JSON.stringify(
+    (data ?? []).map((c) => ({
+      url: c.category_url,
+      description: c.description,
+      type: c.category_type,
+    }))
+  );
+  _categoriesCache = { json, expiresAt: now + 60 * 60 * 1000 }; // 1 hour
+  return json;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -97,19 +123,8 @@ export async function POST(req: NextRequest) {
       console.error("Storage upload error:", uploadError.message);
     }
 
-    // ── 4. Categories for prompt ──────────────────────────────────────────────
-    const { data: categories } = await db()
-      .from("freeagent_categories")
-      .select("category_url, description, category_type")
-      .order("usage_count", { ascending: false });
-
-    const categoriesJson = JSON.stringify(
-      (categories ?? []).map((c) => ({
-        url: c.category_url,
-        description: c.description,
-        type: c.category_type,
-      }))
-    );
+    // ── 4. Categories for prompt (cached 1h) ──────────────────────────────────
+    const categoriesJson = await getCategoriesJson();
 
     // ── 5. Claude extraction ──────────────────────────────────────────────────
     const extracted = await extractReceipt(buffer, claudeMime, categoriesJson);

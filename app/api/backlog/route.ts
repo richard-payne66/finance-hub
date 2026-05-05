@@ -3,6 +3,9 @@ import { randomUUID } from "crypto";
 import { db } from "@/app/lib/db";
 import { errorResponse } from "@/app/lib/api-helpers";
 
+// Backlog mutations are rare; keep function warm but don't over-provision.
+export const maxDuration = 30;
+
 export type BacklogItem = {
   id: string;
   text: string;
@@ -34,7 +37,11 @@ async function writeItems(items: BacklogItem[]): Promise<void> {
 
 export async function GET() {
   try {
-    return NextResponse.json(await readItems());
+    // Cache at the browser/CDN edge for 60s; stale-while-revalidate buys another
+    // 5 min of fast reads without a Vercel function invocation on every poll.
+    return NextResponse.json(await readItems(), {
+      headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" },
+    });
   } catch (err) {
     return errorResponse(err);
   }

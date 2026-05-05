@@ -2,6 +2,10 @@ import { db } from "@/app/lib/db";
 import type { Receipt } from "@/app/lib/types";
 import CaptureWidget from "@/app/components/CaptureWidget";
 
+// Cache the page for 30s. router.refresh() in CaptureWidget bypasses this
+// so a newly captured receipt still appears immediately after upload.
+export const revalidate = 30;
+
 const SIGNED_URL_TTL = 3600;
 
 async function getReceipts(): Promise<Array<Receipt & { thumbUrl: string | null }>> {
