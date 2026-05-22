@@ -42,6 +42,7 @@ const DOCS = [
   { file: "P60/P60_2022-23_HMRC_PAYE_record.pdf", category: "P60", year: "2023", path: "p60/2023/P60_2022-23_HMRC_equivalent.pdf" },
 
   // Statutory Accounts (Companies House filed)
+  { file: "Statutory_Accounts/2022-23_FY_to_30Apr2023.pdf", category: "Statutory Accounts", year: "2023", path: "statutory-accounts/2023/Accounts_2022-23.pdf" },
   { file: "Statutory_Accounts/2023-24_FY_to_30Apr2024.pdf", category: "Statutory Accounts", year: "2024", path: "statutory-accounts/2024/Accounts_2023-24.pdf" },
   { file: "Statutory_Accounts/2024-25_FY_to_30Apr2025.pdf", category: "Statutory Accounts", year: "2025", path: "statutory-accounts/2025/Accounts_2024-25.pdf" },
   // Older Statutory Accounts (informational — not on checklist but uploaded for completeness)
@@ -56,8 +57,10 @@ const DOCS = [
   { file: "Self_Assessment/SA_2024-25_SA100.pdf", category: "Self Assessment", year: "2025", path: "self-assessment/2025/SA100_2024-25.pdf" },
 
   // Trial Balance
+  { file: "Trial_Balance/TB_2022-23.pdf", category: "Trial Balance", year: "2023", path: "trial-balance/2023/TB_2022-23.pdf" },
   { file: "Trial_Balance/TB_2023-24.pdf", category: "Trial Balance", year: "2024", path: "trial-balance/2024/TB_2023-24.pdf" },
   { file: "Trial_Balance/TB_2024-25.pdf", category: "Trial Balance", year: "2025", path: "trial-balance/2025/TB_2024-25.pdf" },
+  { file: "Trial_Balance/TB_2025-26_in_progress.pdf", category: "Trial Balance", year: "2026", path: "trial-balance/2026/TB_2025-26_in_progress.pdf" },
 
   // Company Formation (manual checklist items — checklist_item_id)
   { file: "Companies_House/Certificate_of_Incorporation_2019-04-18.pdf", category: "Other", year: null, path: "company-formation/Certificate_of_Incorporation.pdf", checklistItemId: "doc-incorporation" },
