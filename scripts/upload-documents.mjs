@@ -34,6 +34,10 @@ const DOCS = [
   { file: "Clearance Info/VAT Cert..pdf",                    category: "Other",               year: null,   path: "other/VAT-Certificate.pdf" },
   // Self Assessment
   { file: "Tax/2024/PayneRichard_2024_Final Tax Return.pdf", category: "Self Assessment",    year: "2024", path: "self-assessment/2024/PayneRichard_2024_Final_Tax_Return.pdf" },
+  // P60s
+  { file: "p60-RP-2025-04-06_2026-04-05.pdf", category: "P60", year: "2026", path: "p60/2026/P60_2025-26.pdf" },
+  { file: "p60-RP-2024-04-06_2025-04-05.pdf", category: "P60", year: "2025", path: "p60/2025/P60_2024-25.pdf" },
+  { file: "p60-RP-2023-04-06_2024-04-05.pdf", category: "P60", year: "2024", path: "p60/2024/P60_2023-24.pdf" },
 ];
 
 let uploaded = 0, skipped = 0, errors = 0;
