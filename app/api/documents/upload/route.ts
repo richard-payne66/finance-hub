@@ -33,12 +33,14 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     const file = form.get("file") as File | null;
     const itemId = (form.get("checklist_item_id") as string | null) ?? null;
+    // Allow explicit category/year from form (set by DocumentChecklist)
+    const explicitCategory = (form.get("category") as string | null) ?? null;
+    const explicitYear     = (form.get("year") as string | null) ?? null;
 
     if (!file) return NextResponse.json({ error: "No file." }, { status: 400 });
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const ext = file.name.split(".").pop() ?? "bin";
     const storageKey = `${Date.now()}-${file.name.replace(/[^a-z0-9._-]/gi, "_")}`;
 
     const { error: uploadErr } = await db()
@@ -50,8 +52,8 @@ export async function POST(req: NextRequest) {
     const { data: doc, error: insertErr } = await db()
       .from("documents")
       .insert({
-        category: categoryFor(itemId ?? ""),
-        year: itemId ? yearFor(itemId) : null,
+        category: (explicitCategory as DocumentCategory) ?? categoryFor(itemId ?? ""),
+        year: explicitYear ?? (itemId ? yearFor(itemId) : null),
         filename: file.name,
         file_url: storageKey,
         checklist_item_id: itemId,
