@@ -27,13 +27,13 @@ const DOCS = [
   { file: "VAT/VAT Return Oct 25.pdf",  category: "VAT Returns", year: "2025", path: "vat-returns/2025/VAT_Return_Oct_25.pdf" },
   { file: "VAT/VAT Return Jan 26.pdf",  category: "VAT Returns", year: "2026", path: "vat-returns/2026/VAT_Return_Jan_26.pdf" },
   { file: "VAT/VAT Return Apr 26.pdf",  category: "VAT Returns", year: "2026", path: "vat-returns/2026/VAT_Return_Apr_26.pdf" },
-  // Clearance docs
-  { file: "Clearance Info/RICHARD-PAYNE- Final CT600.pdf",   category: "CT600",              year: "2023", path: "ct600/RICHARD-PAYNE-Final-CT600.pdf" },
-  { file: "Clearance Info/RICHARD-PAYNE - Final Accounts.pdf", category: "Statutory Accounts", year: "2023", path: "statutory-accounts/RICHARD-PAYNE-Final-Accounts.pdf" },
-  { file: "Clearance Info/Final TB.pdf",                     category: "Trial Balance",       year: "2023", path: "trial-balance/Final-TB.pdf" },
-  { file: "Clearance Info/VAT Cert..pdf",                    category: "Other",               year: null,   path: "other/VAT-Certificate.pdf" },
-  // Self Assessment
-  { file: "Tax/2024/PayneRichard_2024_Final Tax Return.pdf", category: "Self Assessment",    year: "2024", path: "self-assessment/2024/PayneRichard_2024_Final_Tax_Return.pdf" },
+  // Clearance docs — content is actually 2023/24 (year ending Apr 2024), labelled year=2024
+  { file: "_Accountant_Original_Packs/2023-24_Final_Handover/RICHARD-PAYNE- Final CT600.pdf",   category: "CT600",              year: "2024", path: "ct600/RICHARD-PAYNE-Final-CT600.pdf" },
+  { file: "_Accountant_Original_Packs/2023-24_Final_Handover/RICHARD-PAYNE - Final Accounts.pdf", category: "Statutory Accounts", year: "2024", path: "statutory-accounts/RICHARD-PAYNE-Final-Accounts.pdf" },
+  { file: "_Accountant_Original_Packs/2023-24_Final_Handover/Final TB.pdf",                     category: "Trial Balance",       year: "2024", path: "trial-balance/Final-TB.pdf" },
+  { file: "_Accountant_Original_Packs/2023-24_Final_Handover/VAT Cert..pdf",                    category: "Other",               year: null,   path: "other/VAT-Certificate.pdf" },
+  // Self Assessment 2023/24
+  { file: "_Accountant_Original_Packs/Self_Assessment_Packs/2024/PayneRichard_2024_Final Tax Return.pdf", category: "Self Assessment",    year: "2024", path: "self-assessment/2024/PayneRichard_2024_Final_Tax_Return.pdf" },
   // P60s (already uploaded — old paths kept for skip detection)
   { file: "P60/P60_2025-26.pdf", category: "P60", year: "2026", path: "p60/2026/P60_2025-26.pdf" },
   { file: "P60/P60_2024-25.pdf", category: "P60", year: "2025", path: "p60/2025/P60_2024-25.pdf" },
