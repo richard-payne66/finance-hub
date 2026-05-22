@@ -1,4 +1,5 @@
 import BacklogSection from "./components/BacklogSection";
+import HMRCPanel from "./components/HMRCPanel";
 
 const TILES = [
   { label: "Cash vs Tax", note: "Phase 4" },
@@ -17,8 +18,12 @@ export default function Home() {
           <h1 className="text-2xl font-black tracking-tight text-foreground">FINANCE HUB</h1>
           <p className="text-xs text-muted/70 mt-1">Richard Payne LTD — accounts, receipts, deadlines</p>
         </div>
-        <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono">v0.3.0</span>
+        <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono">v0.4.0</span>
       </header>
+
+      <div className="mb-6">
+        <HMRCPanel />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {TILES.map((t) => (
