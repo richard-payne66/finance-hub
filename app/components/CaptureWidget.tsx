@@ -12,12 +12,13 @@ type Phase =
   | "dupe"
   | "error";
 
-export default function CaptureWidget() {
+export default function CaptureWidget({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [note, setNote] = useState("");
 
   async function processFile(file: File) {
     try {
@@ -37,6 +38,7 @@ export default function CaptureWidget() {
       const form = new FormData();
       form.append("file", uploadFile);
       form.append("source", source);
+      if (note.trim()) form.append("note", note.trim());
 
       const res = await fetch("/api/process-receipt", { method: "POST", body: form });
       const json = await res.json();
@@ -45,6 +47,7 @@ export default function CaptureWidget() {
       if (!res.ok) { setErrorMsg(json.error ?? "Upload failed."); setPhase("error"); return; }
 
       setPhase("done");
+      setNote(""); // clear note so next capture starts fresh
       // Refresh the server component so the new receipt appears in the queue
       setTimeout(() => { router.refresh(); setPhase("idle"); }, 1500);
     } catch (err) {
@@ -62,19 +65,35 @@ export default function CaptureWidget() {
   const busy = phase === "converting" || phase === "uploading";
 
   return (
-    <div className="bg-surface border border-white/8 rounded-xl p-4 sm:p-5 mb-8">
-      <p className="text-[9px] text-muted uppercase tracking-widest font-bold mb-3">
-        Capture new receipt
-      </p>
+    <div className={compact
+      ? "bg-surface border border-white/8 rounded-2xl p-5 mb-4"
+      : "bg-surface border border-white/8 rounded-xl p-4 sm:p-5 mb-8"
+    }>
+      {!compact && (
+        <p className="text-[9px] text-muted uppercase tracking-widest font-bold mb-3">
+          Capture new receipt
+        </p>
+      )}
 
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFileChange} />
       <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={onFileChange} />
+
+      {/* Optional note — what was this for? */}
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        disabled={busy}
+        placeholder="Optional note — what was this for?"
+        rows={compact ? 2 : 2}
+        className="w-full mb-3 bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted/40 focus:outline-none focus:border-white/30 transition-colors disabled:opacity-40 resize-none"
+        style={{ fontSize: "16px" }} // prevent iOS zoom on focus
+      />
 
       <div className="flex gap-2">
         <button
           disabled={busy}
           onClick={() => cameraRef.current?.click()}
-          className="flex-1 text-[10px] font-bold uppercase tracking-widest py-3 rounded-xl border border-primary/40 text-primary bg-primary/5 hover:bg-primary/15 hover:border-primary/70 transition-all disabled:opacity-30 disabled:cursor-default"
+          className="flex-1 text-[10px] font-bold uppercase tracking-widest py-4 rounded-xl border border-primary/40 text-primary bg-primary/5 hover:bg-primary/15 hover:border-primary/70 transition-all disabled:opacity-30 disabled:cursor-default"
           style={{ fontSize: "16px" }}
         >
           📷 Photo
@@ -82,7 +101,7 @@ export default function CaptureWidget() {
         <button
           disabled={busy}
           onClick={() => fileRef.current?.click()}
-          className="flex-1 text-[10px] font-bold uppercase tracking-widest py-3 rounded-xl border border-white/10 text-muted hover:border-white/20 hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-default"
+          className="flex-1 text-[10px] font-bold uppercase tracking-widest py-4 rounded-xl border border-white/10 text-muted hover:border-white/20 hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-default"
           style={{ fontSize: "16px" }}
         >
           Upload

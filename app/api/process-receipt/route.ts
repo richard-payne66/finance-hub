@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const source = ((formData.get("source") as string | null) ?? "upload") as ReceiptSource;
+    const userNote = (formData.get("note") as string | null)?.trim() || null;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
         low_confidence_fields: extracted.low_confidence_fields,
         extracted_json: extracted,
         receipt_image_url: uploadError ? null : storageKey,
-        notes: extracted.notes,
+        notes: [userNote, extracted.notes].filter(Boolean).join("\n\n") || null,
       })
       .select()
       .single();
