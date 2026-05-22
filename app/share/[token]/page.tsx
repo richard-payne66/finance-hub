@@ -1,20 +1,11 @@
 import { db } from "@/app/lib/db";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import type { Document } from "@/app/lib/types";
+import { loadToken, cookieName, isAuthCookieValid } from "@/app/lib/share-auth";
+import PasswordGate from "./PasswordGate";
 
 export const dynamic = "force-dynamic";
-
-async function validateToken(token: string): Promise<boolean> {
-  const { data } = await db()
-    .from("kv")
-    .select("value")
-    .eq("key", `share_token_${token}`)
-    .maybeSingle();
-  if (!data) return false;
-  try {
-    return new Date(JSON.parse(data.value).expires_at) > new Date();
-  } catch { return false; }
-}
 
 async function getDocuments(): Promise<Document[]> {
   const { data } = await db()
@@ -47,7 +38,18 @@ export default async function SharePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  if (!await validateToken(token)) notFound();
+
+  const meta = await loadToken(token);
+  if (!meta) notFound();
+
+  // Password gate
+  if (meta.pw_hash) {
+    const cookieStore = await cookies();
+    const cookieValue = cookieStore.get(cookieName(token))?.value;
+    if (!isAuthCookieValid(meta, cookieValue)) {
+      return <PasswordGate token={token} label={meta.label} />;
+    }
+  }
 
   const docs = await getDocuments();
 

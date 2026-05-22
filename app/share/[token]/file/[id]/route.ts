@@ -1,29 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { db } from "@/app/lib/db";
+import { loadToken, cookieName, isAuthCookieValid } from "@/app/lib/share-auth";
 
-// Public download route — validates share token before serving file.
+// Public download route — validates share token + password before serving file.
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ token: string; id: string }> }
 ) {
   const { token, id } = await params;
 
-  // Validate token
-  const { data: kv } = await db()
-    .from("kv")
-    .select("value")
-    .eq("key", `share_token_${token}`)
-    .maybeSingle();
+  const meta = await loadToken(token);
+  if (!meta) return NextResponse.json({ error: "Invalid or expired link." }, { status: 403 });
 
-  if (!kv) return NextResponse.json({ error: "Invalid or expired link." }, { status: 403 });
-
-  try {
-    const meta = JSON.parse(kv.value);
-    if (new Date(meta.expires_at) < new Date()) {
-      return NextResponse.json({ error: "Link has expired." }, { status: 403 });
+  // Password gate
+  if (meta.pw_hash) {
+    const cookieStore = await cookies();
+    const cookieValue = cookieStore.get(cookieName(token))?.value;
+    if (!isAuthCookieValid(meta, cookieValue)) {
+      return NextResponse.json({ error: "Password required." }, { status: 401 });
     }
-  } catch {
-    return NextResponse.json({ error: "Invalid link." }, { status: 403 });
   }
 
   // Fetch document
