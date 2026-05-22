@@ -74,13 +74,6 @@ const GROUPS: Group[] = [
       { id: "doc-share-cert",    label: "Share Certificate(s)",         manualOnly: true },
     ],
   },
-  {
-    title: "Insurance",
-    items: [
-      { id: "doc-insurance-pi", label: "Professional Indemnity Insurance", manualOnly: true },
-      { id: "doc-insurance-pl", label: "Public Liability Insurance",       manualOnly: true },
-    ],
-  },
 ];
 
 const ALL_ITEMS = GROUPS.flatMap((g) => g.items);
