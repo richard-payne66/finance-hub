@@ -5,7 +5,7 @@
 import { db } from "@/app/lib/db";
 
 const KV_KEY = "auto_categorisations_log";
-const MAX_ENTRIES = 250;
+const MAX_ENTRIES = 500;
 
 export type AuditAction = "auto_applied" | "queued_for_review" | "skipped_personal" | "error";
 

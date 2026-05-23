@@ -106,7 +106,12 @@ async function applyToFA(txn: FaTxn, categoryUrl: string, description: string): 
     body: JSON.stringify(body),
   });
   if (!r.ok) {
-    throw new Error(`FA explain ${r.status}: ${(await r.text()).slice(0, 300)}`);
+    const text = (await r.text()).slice(0, 300);
+    // 'already explained' is a no-op success — the txn IS categorised in FA
+    if (r.status === 422 && /already.*explained/i.test(text)) {
+      return "already-explained";
+    }
+    throw new Error(`FA explain ${r.status}: ${text}`);
   }
   const json = await r.json();
   return json?.bank_transaction_explanation?.url ?? "";
@@ -139,13 +144,25 @@ export async function POST(req: Request) {
     const dryRun = !!body.dry_run;
     const limit = Math.min(Math.max(parseInt(body.limit ?? "50"), 1), 200);
 
-    const [categories, txns, pastExamples] = await Promise.all([
+    const [categories, txns, pastExamples, recentLog] = await Promise.all([
       getCategories(),
       fetchUncategorised(),
       fetchPastExamples(),
+      loadAuditLog(),
     ]);
 
-    const toProcess = txns.slice(0, limit);
+    // Dedupe against the audit log: don't re-process transactions
+    // we've already successfully auto-applied OR pushed to FA.
+    // (FA's marked_for_review filter is eventually consistent and
+    // sometimes returns transactions we just explained.)
+    const alreadyDone = new Set(
+      recentLog
+        .filter((e) => e.action === "auto_applied")
+        .map((e) => e.bank_transaction_url)
+    );
+
+    const fresh = txns.filter((t) => !alreadyDone.has(t.url));
+    const toProcess = fresh.slice(0, limit);
 
     const entries: AuditEntry[] = [];
 

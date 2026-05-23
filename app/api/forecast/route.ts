@@ -125,8 +125,7 @@ export async function GET() {
         }
 
         // Invoices deliberately excluded from the forecast — the user wants
-        // this view focused on tax bills only. Outstanding invoice value
-        // is shown separately via the StatsTiles 'Owed to you' tile.
+        // this view focused on tax bills only.
       } catch (e) {
         // FA error — just degrade gracefully
         console.error("Forecast FA error:", e);

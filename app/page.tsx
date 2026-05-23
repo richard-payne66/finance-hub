@@ -8,6 +8,7 @@ import OptimisationsPanel from "./components/OptimisationsPanel";
 import AutoCategoriseCard from "./components/AutoCategoriseCard";
 import AnomaliesCard from "./components/AnomaliesCard";
 import DividendCard from "./components/DividendCard";
+import GmailQueueCard from "./components/GmailQueueCard";
 
 export default function Home() {
   return (
@@ -21,10 +22,7 @@ export default function Home() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.9.0</span>
-          <Link href="/reconcile" className="text-[10px] text-muted/50 hover:text-foreground transition-colors uppercase tracking-widest font-bold">
-            Reconciliation →
-          </Link>
+          <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.9.1</span>
           <Link href="/digest" className="text-[10px] text-muted/50 hover:text-foreground transition-colors uppercase tracking-widest font-bold">
             Monthly digest →
           </Link>
@@ -66,6 +64,11 @@ export default function Home() {
       {/* Auto-categorisation activity — collapsed-feel card */}
       <div className="mb-4">
         <AutoCategoriseCard />
+      </div>
+
+      {/* Gmail queue — only renders if pending */}
+      <div className="mb-4">
+        <GmailQueueCard />
       </div>
 
       {/* Detailed breakdown — collapsed by default */}

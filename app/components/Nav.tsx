@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Dashboard" },
+  { href: "/review", label: "Review" },
   { href: "/receipts", label: "Receipts" },
-  { href: "/deadlines", label: "Deadlines" },
+  { href: "/reconcile", label: "Reconcile" },
   { href: "/setup", label: "Setup" },
 ];
 
@@ -15,6 +16,8 @@ export default function Nav() {
 
   // No nav chrome on the login page — it's a full-screen gate.
   if (path === "/login") return null;
+  // Also hide on the share page (it's a public view for the accountant)
+  if (path.startsWith("/share/")) return null;
 
   return (
     <nav className="flex gap-1 flex-wrap px-4 sm:px-8 pt-5 pb-2 max-w-6xl mx-auto">
