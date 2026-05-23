@@ -101,3 +101,13 @@ him exactly what — once, calmly.
    with the maths one click away.
 
 Build priority: 1 → 2 → 3 → 5 → 4 → 6 → 7.
+
+## Status
+
+- ✅ #1 Auto-categorisation — shipped 2026-05-23. Daily cron at 08:00 UTC.
+  Threshold 0.85 for auto-apply; below queued for review. Tax-efficiency
+  bias in system prompt. First batch run: 13 auto, 46 queued, 7 skipped
+  as personal (correctly).
+- ⏳ #2 Email forward — pending Google OAuth client creation
+- ⏳ #3 Monthly digest — pending #1 stable
+- ⏳ #5 #4 #6 #7 — future
