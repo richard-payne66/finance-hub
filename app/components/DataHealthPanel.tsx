@@ -49,22 +49,22 @@ export default function DataHealthPanel() {
   return (
     <div className={`border rounded-2xl p-5 ${
       healthy
-        ? "bg-emerald-500/5 border-emerald-500/20"
-        : "bg-amber-500/5 border-amber-500/20"
+        ? "bg-surface border-emerald-500/20"
+        : "bg-surface border-white/10"
     }`}>
       <button
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-center justify-between gap-3 text-left"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-2xl">{healthy ? "✓" : "⚠️"}</span>
+          <span className="text-xl">{healthy ? "✓" : "⚙️"}</span>
           <div className="min-w-0">
             <p className={`text-[9px] uppercase tracking-widest font-bold ${
-              healthy ? "text-emerald-400" : "text-amber-400"
+              healthy ? "text-emerald-400" : "text-muted"
             }`}>
               Data accuracy
             </p>
-            <p className="text-sm text-foreground mt-0.5">
+            <p className="text-sm text-muted/80 mt-0.5">
               {healthy
                 ? "All bank feeds fresh, nothing to review"
                 : issues.join(" · ")}

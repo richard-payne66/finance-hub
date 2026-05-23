@@ -1,14 +1,15 @@
 import Link from "next/link";
 import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
-import StatsTiles from "./components/StatsTiles";
 import DataHealthPanel from "./components/DataHealthPanel";
 import MonzoPotsPanel from "./components/MonzoPotsPanel";
+import ForecastPanel from "./components/ForecastPanel";
+import ConfidenceCard from "./components/ConfidenceCard";
 
 export default function Home() {
   return (
     <main className="min-h-screen px-4 sm:px-8 py-6 max-w-6xl mx-auto">
-      <header className="flex items-start justify-between gap-4 mb-8">
+      <header className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">FINANCE HUB</h1>
           <p className="text-xs text-muted/70 mt-1 max-w-md leading-relaxed">
@@ -16,42 +17,47 @@ export default function Home() {
             right — see for yourself everything is filed, paid, and on track.
           </p>
         </div>
-        <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.5.0</span>
+        <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.6.0</span>
       </header>
 
-      {/* Headline: what you owe HMRC + quick capture */}
-      <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <HMRCPanel />
+      {/* HERO: the forecast — the calm headline */}
+      <div className="mb-4">
+        <ForecastPanel />
+      </div>
+
+      {/* Confidence + quick capture */}
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
+          <ConfidenceCard />
         </div>
         <Link
           href="/capture"
-          className="bg-surface border border-white/8 rounded-2xl p-6 hover:border-primary/40 hover:bg-primary/5 transition-all flex flex-col items-center justify-center text-center gap-2"
+          className="bg-surface border border-white/8 rounded-2xl p-6 hover:border-primary/40 hover:bg-primary/5 transition-all flex flex-col items-center justify-center text-center gap-2 h-full min-h-[140px]"
         >
           <span className="text-4xl">📷</span>
           <span className="text-sm font-bold uppercase tracking-widest text-foreground">
             Capture Receipt
           </span>
-          <span className="text-[10px] text-muted/50">
-            Tap to snap &amp; log
-          </span>
+          <span className="text-[10px] text-muted/50">Tap to snap &amp; log</span>
         </Link>
       </div>
 
-      {/* Live stat tiles */}
-      <div className="mb-4">
-        <StatsTiles />
-      </div>
+      {/* Details — collapsed by default, calmer presentation */}
+      <details className="mb-4 group">
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-3 bg-surface border border-white/8 rounded-2xl hover:border-white/15 transition-colors">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+            Detailed breakdown
+          </span>
+          <span className="text-[10px] text-muted/40 font-mono group-open:hidden">Show ▾</span>
+          <span className="text-[10px] text-muted/40 font-mono hidden group-open:inline">Hide ▴</span>
+        </summary>
 
-      {/* Tax saved in Monzo pots — live coverage vs what's owed */}
-      <div className="mb-4">
-        <MonzoPotsPanel />
-      </div>
-
-      {/* Data accuracy / freshness — answers "do I trust these numbers?" */}
-      <div className="mb-8">
-        <DataHealthPanel />
-      </div>
+        <div className="mt-4 flex flex-col gap-4">
+          <HMRCPanel />
+          <MonzoPotsPanel />
+          <DataHealthPanel />
+        </div>
+      </details>
 
       <BacklogSection />
     </main>
