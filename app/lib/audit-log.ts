@@ -1,0 +1,61 @@
+// Lightweight audit log stored as a single kv row. Kept compact and
+// FIFO-capped because we don't have CREATE TABLE permissions from the
+// JS client.
+
+import { db } from "@/app/lib/db";
+
+const KV_KEY = "auto_categorisations_log";
+const MAX_ENTRIES = 250;
+
+export type AuditAction = "auto_applied" | "queued_for_review" | "skipped_personal" | "error";
+
+export type AuditEntry = {
+  id: string;
+  created_at: string;
+  bank_transaction_url: string;
+  txn_description: string;
+  txn_amount: number;
+  txn_date: string;
+  category_url: string | null;
+  category_name: string | null;
+  confidence: number;
+  reasoning: string;
+  tax_note: string | null;
+  action: AuditAction;
+  fa_explanation_url: string | null;
+  error: string | null;
+};
+
+export async function loadAuditLog(): Promise<AuditEntry[]> {
+  const { data } = await db().from("kv").select("value").eq("key", KV_KEY).maybeSingle();
+  if (!data) return [];
+  try { return JSON.parse(data.value) as AuditEntry[]; } catch { return []; }
+}
+
+export async function appendAuditEntries(entries: AuditEntry[]): Promise<void> {
+  const existing = await loadAuditLog();
+  const merged = [...entries, ...existing].slice(0, MAX_ENTRIES);
+  await db().from("kv").upsert({ key: KV_KEY, value: JSON.stringify(merged) });
+}
+
+export function summarise(entries: AuditEntry[], windowDays = 7): {
+  total: number;
+  auto_applied: number;
+  queued: number;
+  skipped: number;
+  errors: number;
+  cumulative_amount: number;
+} {
+  const cutoff = Date.now() - windowDays * 86400000;
+  const recent = entries.filter((e) => new Date(e.created_at).getTime() >= cutoff);
+  return {
+    total: recent.length,
+    auto_applied: recent.filter((e) => e.action === "auto_applied").length,
+    queued: recent.filter((e) => e.action === "queued_for_review").length,
+    skipped: recent.filter((e) => e.action === "skipped_personal").length,
+    errors: recent.filter((e) => e.action === "error").length,
+    cumulative_amount: recent
+      .filter((e) => e.action === "auto_applied")
+      .reduce((s, e) => s + Math.abs(e.txn_amount), 0),
+  };
+}

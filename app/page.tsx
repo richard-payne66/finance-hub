@@ -5,6 +5,7 @@ import DataHealthPanel from "./components/DataHealthPanel";
 import MonzoPotsPanel from "./components/MonzoPotsPanel";
 import ForecastPanel from "./components/ForecastPanel";
 import ConfidenceCard from "./components/ConfidenceCard";
+import AutoCategoriseCard from "./components/AutoCategoriseCard";
 
 export default function Home() {
   return (
@@ -40,6 +41,11 @@ export default function Home() {
           </span>
           <span className="text-[10px] text-muted/50">Tap to snap &amp; log</span>
         </Link>
+      </div>
+
+      {/* Auto-categorisation activity — the AI bookkeeper */}
+      <div className="mb-4">
+        <AutoCategoriseCard />
       </div>
 
       {/* Details — collapsed by default, calmer presentation */}
