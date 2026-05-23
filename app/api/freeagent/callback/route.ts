@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { exchangeCode } from "@/app/lib/freeagent";
+import { consumeState } from "@/app/lib/oauth-state";
 
 // Receives the OAuth code, exchanges for tokens, stores them, redirects home.
 export async function GET(req: NextRequest) {
@@ -11,13 +12,16 @@ export async function GET(req: NextRequest) {
   if (error) {
     return NextResponse.redirect(new URL(`/?fa=error&reason=${encodeURIComponent(error)}`, req.url));
   }
-  if (!code) {
+  if (!code || !state) {
     return NextResponse.redirect(new URL("/?fa=error&reason=no_code", req.url));
   }
 
   const cookieStore = await cookies();
-  const expected = cookieStore.get("fa_oauth_state")?.value;
-  if (!expected || expected !== state) {
+  const cookieState = cookieStore.get("fa_oauth_state")?.value;
+  const cookieMatch = cookieState && cookieState === state;
+  const kvMatch = await consumeState(state, "freeagent");
+
+  if (!cookieMatch && !kvMatch) {
     return NextResponse.redirect(new URL("/?fa=error&reason=bad_state", req.url));
   }
 
