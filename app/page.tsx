@@ -1,28 +1,24 @@
 import Link from "next/link";
 import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
-
-const TILES = [
-  { label: "Cash vs Tax", note: "Phase 4" },
-  { label: "Next Deadline", note: "Phase 4" },
-  { label: "YTD P&L", note: "Phase 4" },
-  { label: "Outstanding Invoices", note: "Phase 4" },
-  { label: "Salary & Dividend", note: "Phase 4" },
-  { label: "Receipt Queue", note: "Phase 3" },
-];
+import StatsTiles from "./components/StatsTiles";
 
 export default function Home() {
   return (
     <main className="min-h-screen px-4 sm:px-8 py-6 max-w-6xl mx-auto">
-      <header className="flex items-end justify-between gap-4 mb-8">
+      <header className="flex items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">FINANCE HUB</h1>
-          <p className="text-xs text-muted/70 mt-1">Richard Payne LTD — accounts, receipts, deadlines</p>
+          <p className="text-xs text-muted/70 mt-1 max-w-md leading-relaxed">
+            Your safety net. So you don&apos;t have to <em>hope</em> your accountant got it
+            right — see for yourself everything is filed, paid, and on track.
+          </p>
         </div>
-        <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono">v0.4.0</span>
+        <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.5.0</span>
       </header>
 
-      <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Headline: what you owe HMRC + quick capture */}
+      <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <HMRCPanel />
         </div>
@@ -35,21 +31,14 @@ export default function Home() {
             Capture Receipt
           </span>
           <span className="text-[10px] text-muted/50">
-            Tap to snap & log
+            Tap to snap &amp; log
           </span>
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {TILES.map((t) => (
-          <div
-            key={t.label}
-            className="bg-surface border border-white/8 rounded-xl p-4 sm:p-5 hover:border-white/15 transition-all"
-          >
-            <p className="text-[9px] font-bold uppercase tracking-widest text-muted/50 mb-2">{t.label}</p>
-            <p className="text-sm text-foreground/40">— {t.note}</p>
-          </div>
-        ))}
+      {/* Live stat tiles */}
+      <div className="mb-8">
+        <StatsTiles />
       </div>
 
       <BacklogSection />
