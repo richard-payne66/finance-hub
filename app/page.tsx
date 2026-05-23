@@ -6,6 +6,9 @@ import MonzoPotsPanel from "./components/MonzoPotsPanel";
 import ForecastPanel from "./components/ForecastPanel";
 import ConfidenceCard from "./components/ConfidenceCard";
 import AutoCategoriseCard from "./components/AutoCategoriseCard";
+import AnomaliesCard from "./components/AnomaliesCard";
+import CanIExpenseWidget from "./components/CanIExpenseWidget";
+import DividendCard from "./components/DividendCard";
 
 export default function Home() {
   return (
@@ -18,10 +21,15 @@ export default function Home() {
             right — see for yourself everything is filed, paid, and on track.
           </p>
         </div>
-        <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.6.0</span>
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.7.0</span>
+          <Link href="/digest" className="text-[10px] text-muted/50 hover:text-foreground transition-colors uppercase tracking-widest font-bold">
+            Monthly digest →
+          </Link>
+        </div>
       </header>
 
-      {/* HERO: the forecast — the calm headline */}
+      {/* HERO: the forecast */}
       <div className="mb-4">
         <ForecastPanel />
       </div>
@@ -43,12 +51,23 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Auto-categorisation activity — the AI bookkeeper */}
+      {/* Pay yourself + Ask anything */}
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <DividendCard />
+        <CanIExpenseWidget />
+      </div>
+
+      {/* Anomalies — only renders if relevant */}
+      <div className="mb-4">
+        <AnomaliesCard />
+      </div>
+
+      {/* Auto-categorisation activity */}
       <div className="mb-4">
         <AutoCategoriseCard />
       </div>
 
-      {/* Details — collapsed by default, calmer presentation */}
+      {/* Details — collapsed by default */}
       <details className="mb-4 group">
         <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-3 bg-surface border border-white/8 rounded-2xl hover:border-white/15 transition-colors">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
@@ -57,7 +76,6 @@ export default function Home() {
           <span className="text-[10px] text-muted/40 font-mono group-open:hidden">Show ▾</span>
           <span className="text-[10px] text-muted/40 font-mono hidden group-open:inline">Hide ▴</span>
         </summary>
-
         <div className="mt-4 flex flex-col gap-4">
           <HMRCPanel />
           <MonzoPotsPanel />
