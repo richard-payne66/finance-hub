@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadAuditLog, appendAuditEntries, type AuditEntry } from "@/app/lib/audit-log";
+import { loadAuditLog, type AuditEntry } from "@/app/lib/audit-log";
 import { loadTokens } from "@/app/lib/freeagent";
-import { errorResponse } from "@/app/lib/api-helpers";
+import { upsertRule } from "@/app/lib/category-rules";
 import { db } from "@/app/lib/db";
 
-// POST body:
-//   { id: string, category_url?: string }
-// If category_url is given, it overrides Claude's suggestion (user edit).
-// Pushes to FA via /v2/bank_transaction_explanations and updates the
-// audit entry to action='auto_applied' with fa_explanation_url set.
+// Push a category to FA. Returns:
+//   - 'ok' with the explanation URL if push succeeded
+//   - 'already_explained' if FA returns 404 (txn was explained elsewhere)
+//   - 'error' otherwise, with full FA response surfaced
+type PushOutcome =
+  | { kind: "ok"; explanation_url: string }
+  | { kind: "already_explained" }
+  | { kind: "error"; status: number; body: string };
 
 async function pushToFA(args: {
   bank_transaction_url: string;
@@ -16,18 +19,33 @@ async function pushToFA(args: {
   dated_on: string;
   amount: number;
   description: string;
-}): Promise<string> {
+}): Promise<PushOutcome> {
   const tokens = await loadTokens();
-  if (!tokens) throw new Error("Not connected to FA");
+  if (!tokens) return { kind: "error", status: 0, body: "FA not connected" };
 
-  // Need the bank_account URL too. Look up the transaction.
+  // Look up the transaction to get the bank_account URL.
   const txnRes = await fetch(args.bank_transaction_url, {
     headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: "application/json" },
   });
-  if (!txnRes.ok) throw new Error(`Lookup txn: ${txnRes.status} ${await txnRes.text()}`);
+
+  if (txnRes.status === 404) {
+    return { kind: "already_explained" };
+  }
+  if (!txnRes.ok) {
+    return { kind: "error", status: txnRes.status, body: (await txnRes.text()).slice(0, 500) };
+  }
+
   const txnJson = await txnRes.json();
   const bankAccount = txnJson?.bank_transaction?.bank_account;
-  if (!bankAccount) throw new Error("No bank_account on transaction");
+  if (!bankAccount) {
+    return { kind: "error", status: 200, body: `Transaction has no bank_account field` };
+  }
+
+  // Check if already explained — FA includes 'is_explained' on the txn
+  // when it's been categorised. If true, treat as already done.
+  if (txnJson?.bank_transaction?.is_manual === false && Array.isArray(txnJson?.bank_transaction?.bank_transaction_explanations) && txnJson.bank_transaction.bank_transaction_explanations.length > 0) {
+    return { kind: "already_explained" };
+  }
 
   const body = {
     bank_transaction_explanation: {
@@ -50,9 +68,15 @@ async function pushToFA(args: {
     },
     body: JSON.stringify(body),
   });
-  if (!r.ok) throw new Error(`FA explain ${r.status}: ${(await r.text()).slice(0, 300)}`);
+
+  if (!r.ok) {
+    const text = (await r.text()).slice(0, 500);
+    // FA returns 422 with 'has already been explained' message in some cases
+    if (r.status === 422 && /already/i.test(text)) return { kind: "already_explained" };
+    return { kind: "error", status: r.status, body: text };
+  }
   const j = await r.json();
-  return j?.bank_transaction_explanation?.url ?? "";
+  return { kind: "ok", explanation_url: j?.bank_transaction_explanation?.url ?? "" };
 }
 
 export async function POST(req: NextRequest) {
@@ -62,13 +86,13 @@ export async function POST(req: NextRequest) {
 
     const log = await loadAuditLog();
     const idx = log.findIndex((e) => e.id === id);
-    if (idx < 0) return NextResponse.json({ error: "entry not found" }, { status: 404 });
+    if (idx < 0) return NextResponse.json({ error: "entry not found in audit log" }, { status: 404 });
 
     const entry = log[idx];
     const categoryUrl = overrideCategory ?? entry.category_url;
     if (!categoryUrl) return NextResponse.json({ error: "no category to apply" }, { status: 400 });
 
-    // Resolve category name if overridden
+    // Resolve category name (for the audit log + learning rule)
     let categoryName = entry.category_name;
     if (overrideCategory && overrideCategory !== entry.category_url) {
       const { getCategories } = await import("@/app/lib/fa-categories");
@@ -76,7 +100,7 @@ export async function POST(req: NextRequest) {
       categoryName = cats.find((c) => c.url === overrideCategory)?.description ?? null;
     }
 
-    const faUrl = await pushToFA({
+    const outcome = await pushToFA({
       bank_transaction_url: entry.bank_transaction_url,
       category_url: categoryUrl,
       dated_on: entry.txn_date,
@@ -84,30 +108,46 @@ export async function POST(req: NextRequest) {
       description: entry.txn_description,
     });
 
-    // Mark this audit entry as applied (and add a fresh entry recording the override)
+    if (outcome.kind === "error") {
+      return NextResponse.json(
+        { error: `FreeAgent rejected: ${outcome.body}`, status: outcome.status },
+        { status: 502 }
+      );
+    }
+
+    // outcome is 'ok' or 'already_explained' — both are 'done' from the
+    // user's POV. Mark the entry applied and remove from queue.
     const updated: AuditEntry = {
       ...entry,
       category_url: categoryUrl,
       category_name: categoryName,
       action: "auto_applied",
-      fa_explanation_url: faUrl,
+      fa_explanation_url: outcome.kind === "ok" ? outcome.explanation_url : entry.fa_explanation_url,
+      reasoning: outcome.kind === "already_explained"
+        ? `${entry.reasoning} [already explained in FA]`
+        : entry.reasoning,
     };
     log[idx] = updated;
     await db().from("kv").upsert({ key: "auto_categorisations_log", value: JSON.stringify(log) });
 
-    // If user overrode, persist the override so future categorisations can learn from it
-    if (overrideCategory && overrideCategory !== entry.category_url) {
-      await appendAuditEntries([{
-        ...updated,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        action: "auto_applied",
-        reasoning: `User override (was ${entry.category_name})`,
-      }]);
+    // LEARNING LOOP: persist a vendor → category rule so next time the
+    // same supplier shows up, we skip Claude and apply directly.
+    if (categoryName) {
+      await upsertRule({
+        description: entry.txn_description,
+        category_url: categoryUrl,
+        category_name: categoryName,
+      });
     }
 
-    return NextResponse.json({ ok: true, fa_explanation_url: faUrl });
+    return NextResponse.json({
+      ok: true,
+      already_explained: outcome.kind === "already_explained",
+      fa_explanation_url: outcome.kind === "ok" ? outcome.explanation_url : null,
+    });
   } catch (err) {
-    return errorResponse(err);
+    // Surface the real error to the client so we can debug
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

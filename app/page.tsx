@@ -7,7 +7,6 @@ import ForecastPanel from "./components/ForecastPanel";
 import ConfidenceCard from "./components/ConfidenceCard";
 import AutoCategoriseCard from "./components/AutoCategoriseCard";
 import AnomaliesCard from "./components/AnomaliesCard";
-import CanIExpenseWidget from "./components/CanIExpenseWidget";
 import DividendCard from "./components/DividendCard";
 
 export default function Home() {
@@ -51,10 +50,9 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Pay yourself + Ask anything */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Pay yourself */}
+      <div className="mb-4">
         <DividendCard />
-        <CanIExpenseWidget />
       </div>
 
       {/* Anomalies — only renders if relevant */}

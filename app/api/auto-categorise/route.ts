@@ -3,6 +3,7 @@ import { api as faApi, isConnected as faConnected } from "@/app/lib/freeagent";
 import { getCategories } from "@/app/lib/fa-categories";
 import { classifyTransaction, type PastExample } from "@/app/lib/categorise";
 import { loadAuditLog, appendAuditEntries, summarise, type AuditEntry } from "@/app/lib/audit-log";
+import { lookupRule } from "@/app/lib/category-rules";
 import { randomUUID } from "crypto";
 import { errorResponse } from "@/app/lib/api-helpers";
 
@@ -152,7 +153,20 @@ export async function POST(req: Request) {
       const amount = parseFloat(txn.amount);
       const desc = txn.full_description ?? txn.description ?? "";
 
+      // LEARNED RULE CHECK: if we've seen this vendor before and the user
+      // explicitly approved a category for it, skip Claude entirely.
+      const rule = await lookupRule(desc);
       let result;
+      if (rule) {
+        result = {
+          category_url: rule.category_url,
+          category_name: rule.category_name,
+          confidence: 1.0, // user-confirmed = full confidence
+          reasoning: `Matched learned rule for "${rule.vendor}" (used ${rule.hits} time${rule.hits !== 1 ? "s" : ""} before).`,
+          tax_note: null,
+          is_personal_likely: false,
+        };
+      } else {
       try {
         result = await classifyTransaction({
           description: desc,
@@ -180,6 +194,7 @@ export async function POST(req: Request) {
         });
         continue;
       }
+      } // close else branch of rule check
 
       // Decide action
       let action: AuditEntry["action"];
