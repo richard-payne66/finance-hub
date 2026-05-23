@@ -21,7 +21,10 @@ export default function Home() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.8.0</span>
+          <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.9.0</span>
+          <Link href="/reconcile" className="text-[10px] text-muted/50 hover:text-foreground transition-colors uppercase tracking-widest font-bold">
+            Reconciliation →
+          </Link>
           <Link href="/digest" className="text-[10px] text-muted/50 hover:text-foreground transition-colors uppercase tracking-widest font-bold">
             Monthly digest →
           </Link>
