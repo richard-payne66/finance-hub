@@ -50,3 +50,54 @@ him the visual confidence to verify it himself.
   Finance Hub is *for the client of the accountant*.
 - It does **not** need to be exhaustively correct. Indicative numbers
   with clear sources beat hidden complexity.
+
+## The user
+
+Richard is the sole director of a single-person Ltd company doing
+film/animation production. Predictable monthly rhythm:
+- Client invoices in
+- Salary out (~£1,047)
+- Dividends out (~£3,400 avg)
+- Recurring software/tools, occasional kit
+- Quarterly VAT, annual CT, annual SA, monthly PAYE
+
+He pays an accountant to do the formal work in FreeAgent. He does
+**not** want to learn formal accounting. He finds FreeAgent
+overwhelming because it shows everything to everyone without
+curating "what does the owner actually need to see?"
+
+The system you are building is a **butler, not a dashboard**. Most
+days it stays out of his way. When he needs to know something, it
+tells him in one sentence. When he needs to do something, it tells
+him exactly what — once, calmly.
+
+## What this system should NEVER do
+
+- Ask the user to configure anything ("first set up your categories…")
+- Show charts the user didn't ask for
+- Use accounting jargon: *liability, accrual, journal, nominal code*
+- Surface more than ONE alert at a time
+- Need the user to remember to "sync" or "refresh"
+- Have a settings page with toggles
+- Force the user to learn how it works
+- Default to red/amber tones when there's nothing actually wrong
+
+## The seven things that would make this great
+
+1. **Background auto-categorisation** — Claude learns from history,
+   silently applies high-confidence categories, queues low-confidence
+   for a weekly 2-min review session.
+2. **Forward-anything-to-receipts@** — email forward + optional note,
+   auto-extracted, auto-matched to bank transaction, attached in FA.
+3. **Monthly "you're fine" digest** — one email per month, plain
+   English. Active reassurance, not passive dashboard.
+4. **"Can I expense this?" assistant** — real-time ruling on
+   purchases with category + tax saving estimate.
+5. **Anomaly detection** — quiet most months, lifesaving the one
+   month a payment is missing or doubled.
+6. **Accountant verification layer** — compares accountant's filings
+   against the underlying data, flags discrepancies in plain English.
+7. **Dividend assistant** — monthly "you can safely pay yourself £X"
+   with the maths one click away.
+
+Build priority: 1 → 2 → 3 → 5 → 4 → 6 → 7.
