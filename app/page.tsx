@@ -3,6 +3,7 @@ import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
 import StatsTiles from "./components/StatsTiles";
 import DataHealthPanel from "./components/DataHealthPanel";
+import MonzoPotsPanel from "./components/MonzoPotsPanel";
 
 export default function Home() {
   return (
@@ -40,6 +41,11 @@ export default function Home() {
       {/* Live stat tiles */}
       <div className="mb-4">
         <StatsTiles />
+      </div>
+
+      {/* Tax saved in Monzo pots — live coverage vs what's owed */}
+      <div className="mb-4">
+        <MonzoPotsPanel />
       </div>
 
       {/* Data accuracy / freshness — answers "do I trust these numbers?" */}
