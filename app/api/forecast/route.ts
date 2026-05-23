@@ -13,7 +13,8 @@ export type ForecastEvent = {
   date: string;          // ISO date
   label: string;
   amount: number;        // positive = money in, negative = money out
-  kind: "vat" | "corp_tax" | "self_assessment" | "invoice" | "other";
+  kind: "vat" | "corp_tax" | "self_assessment" | "paye" | "invoice" | "other";
+  dd_enabled?: boolean;  // direct debit set up for this tax type?
 };
 
 export type Forecast = {
@@ -46,6 +47,12 @@ export async function GET() {
     const events: ForecastEvent[] = [];
     let cashToday = 0;
     const sources = { freeagent: false, monzo: false };
+
+    // Direct-debit flags per tax kind (user-set)
+    const ddRow = await db().from("kv").select("value").eq("key", "dd_flags").maybeSingle();
+    const ddFlags: Partial<Record<ForecastEvent["kind"], boolean>> = ddRow.data
+      ? (() => { try { return JSON.parse(ddRow.data.value); } catch { return {}; } })()
+      : {};
 
     // -- Cash today: FA banks (fresh) + Monzo accounts/pots --
     if (await faConnected()) {
@@ -88,6 +95,7 @@ export async function GET() {
               label: `VAT — ${r.period_ends_on ?? "outstanding"}`,
               amount: -Math.abs(amt),
               kind: "vat",
+              dd_enabled: ddFlags.vat ?? false,
             });
           }
         }
@@ -112,22 +120,13 @@ export async function GET() {
             label: `Corp Tax — YE ${r.period_ends_on ?? ""}` + (r.filing_status === "draft" ? " (est.)" : ""),
             amount: -amt,
             kind: "corp_tax",
+            dd_enabled: ddFlags.corp_tax ?? false,
           });
         }
 
-        // -- Upcoming invoice receipts --
-        const openInv = await faApi<{ invoices: Array<{ total_value: string; due_on?: string }> }>("/invoices?view=open");
-        const overdueInv = await faApi<{ invoices: Array<{ total_value: string; due_on?: string }> }>("/invoices?view=overdue");
-        for (const i of [...openInv.invoices, ...overdueInv.invoices]) {
-          const amt = parseAmount(i.total_value);
-          if (amt < 0.01 || !i.due_on) continue;
-          events.push({
-            date: i.due_on,
-            label: "Invoice payment due",
-            amount: amt,
-            kind: "invoice",
-          });
-        }
+        // Invoices deliberately excluded from the forecast — the user wants
+        // this view focused on tax bills only. Outstanding invoice value
+        // is shown separately via the StatsTiles 'Owed to you' tile.
       } catch (e) {
         // FA error — just degrade gracefully
         console.error("Forecast FA error:", e);
@@ -171,11 +170,15 @@ export async function GET() {
           if (l.status === "paid") continue;
           if (!l.due_on) continue;
           if (new Date(l.due_on).getTime() < now - 86400000) continue;
+          const k: ForecastEvent["kind"] = l.kind.toLowerCase().includes("self") ? "self_assessment"
+                                          : l.kind.toLowerCase().includes("paye") ? "paye"
+                                          : "other";
           events.push({
             date: l.due_on,
             label: `${l.kind} — ${l.period_label}`,
             amount: -l.amount,
-            kind: l.kind.toLowerCase().includes("self") ? "self_assessment" : "other",
+            kind: k,
+            dd_enabled: ddFlags[k] ?? false,
           });
         }
       } catch {}

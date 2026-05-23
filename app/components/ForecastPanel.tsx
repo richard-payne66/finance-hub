@@ -100,31 +100,44 @@ export default function ForecastPanel() {
         ))}
       </div>
 
-      {/* Next 90 days timeline */}
+      {/* Next 90 days timeline — tax bills only, with DD status per kind */}
       {within90.length > 0 && (
         <div className="mt-6 pt-5 border-t border-white/5">
-          <p className="text-[9px] text-muted/60 uppercase tracking-widest font-bold mb-3">
-            Next 90 days
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[9px] text-muted/60 uppercase tracking-widest font-bold">
+              Upcoming tax bills (next 90 days)
+            </p>
+            <p className="text-[9px] text-muted/40">
+              🔒 = direct debit set up
+            </p>
+          </div>
           <div className="flex flex-col gap-1.5">
             {within90.map((e, i) => (
-              <div key={i} className="flex items-center justify-between gap-3 py-1">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className={`text-[9px] font-mono tabular-nums shrink-0 w-12 ${
-                    e.amount > 0 ? "text-emerald-400/70" : "text-muted/50"
-                  }`}>
+              <div key={i} className="flex items-center justify-between gap-3 py-1.5 border-t border-white/5 first:border-t-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span className="text-[9px] font-mono tabular-nums shrink-0 w-12 text-muted/50">
                     {fmtDate(e.date)}
                   </span>
-                  <span className="text-xs text-muted/80 truncate">{e.label}</span>
+                  <span className="text-xs text-foreground/90 truncate">{e.label}</span>
+                  {e.dd_enabled ? (
+                    <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                      🔒 DD
+                    </span>
+                  ) : (e.kind === "vat" || e.kind === "corp_tax" || e.kind === "self_assessment" || e.kind === "paye") ? (
+                    <span className="text-[9px] text-amber-400/60 shrink-0 font-mono">
+                      no DD
+                    </span>
+                  ) : null}
                 </div>
-                <span className={`text-xs font-bold font-mono shrink-0 ${
-                  e.amount > 0 ? "text-emerald-400" : "text-foreground"
-                }`}>
-                  {e.amount > 0 ? "+" : ""}{GBP.format(e.amount)}
+                <span className="text-xs font-bold font-mono shrink-0 text-foreground">
+                  {GBP.format(e.amount)}
                 </span>
               </div>
             ))}
           </div>
+          <p className="text-[9px] text-muted/30 mt-3 italic">
+            Set up DD with HMRC to avoid late payments. Manage flags in <a href="/settings/dd" className="underline hover:text-muted">settings</a>.
+          </p>
         </div>
       )}
 

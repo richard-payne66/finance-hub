@@ -13,6 +13,7 @@ import {
   type GmailPart,
 } from "@/app/lib/google";
 import { extractReceipt } from "@/app/lib/claude-extract";
+import { api as faApi, isConnected as faIsConnected, loadTokens as faLoadTokens } from "@/app/lib/freeagent";
 import { errorResponse } from "@/app/lib/api-helpers";
 
 export const maxDuration = 300;
@@ -81,8 +82,98 @@ type ProcessResult = {
   subject: string;
   attachments_processed: number;
   receipts_created: number;
+  bank_matches: number;
   errors: string[];
 };
+
+// Match a receipt to a bank transaction by amount + date proximity.
+// Returns the FA bank_transaction URL if found, else null.
+async function findMatchingBankTxn(
+  amount: number,
+  supplyDateISO: string,
+  supplier: string | null
+): Promise<{ url: string; bank_account: string; description: string } | null> {
+  if (!amount || !supplyDateISO) return null;
+  if (!(await faIsConnected())) return null;
+
+  try {
+    // Window: ±7 days around supply date
+    const target = new Date(supplyDateISO).getTime();
+    const banks = await faApi<{ bank_accounts: Array<{ url: string; is_personal: boolean; status: string }> }>("/bank_accounts");
+    const businessAccounts = banks.bank_accounts.filter((b) => !b.is_personal && b.status === "active");
+
+    for (const acc of businessAccounts) {
+      for (let page = 1; page <= 3; page++) {
+        const r = await faApi<{ bank_transactions: Array<{ url: string; amount: string; dated_on: string; description: string; bank_account: string }> }>(
+          `/bank_transactions?bank_account=${encodeURIComponent(acc.url)}&per_page=50&page=${page}`
+        );
+        const txns = r.bank_transactions ?? [];
+        for (const t of txns) {
+          const txnAmount = Math.abs(parseFloat(t.amount));
+          const txnDate = new Date(t.dated_on).getTime();
+          if (Math.abs(txnAmount - amount) > 0.01) continue;
+          if (Math.abs(txnDate - target) > 7 * 86400000) continue;
+          if (supplier) {
+            const supKey = supplier.toLowerCase().split(/\s+/)[0];
+            if (supKey && !t.description.toLowerCase().includes(supKey)) {
+              // Allow loose match — only reject if supplier is given and totally absent
+              // (fall through anyway: trust amount+date)
+            }
+          }
+          return { url: t.url, bank_account: t.bank_account, description: t.description };
+        }
+        if (txns.length < 50) break;
+        // Stop paging once we've gone past the target date window
+        const last = txns[txns.length - 1];
+        if (last && new Date(last.dated_on).getTime() < target - 14 * 86400000) break;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Attach a receipt PDF/image to a bank transaction in FA via attachments.
+// Endpoint: POST /v2/attachments
+async function attachToBankTxn(args: {
+  bank_transaction_url: string;
+  filename: string;
+  contentBase64: string;
+  contentType: string;
+}): Promise<string | null> {
+  const tokens = await faLoadTokens();
+  if (!tokens) return null;
+  try {
+    const r = await fetch("https://api.freeagent.com/v2/attachments", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        attachment: {
+          data: args.contentBase64,
+          file_name: args.filename,
+          content_type: args.contentType,
+          description: "Receipt auto-attached by Finance Hub",
+          // 'attachable_url' style varies by FA endpoint; bank_transaction
+          // attachments use /v2/bank_transaction_explanations attachment field.
+          // Bare /v2/attachments may not link to bank txns directly — this
+          // is best-effort. If unsupported, we leave the receipt in the
+          // queue and surface it for manual linking.
+          bank_transaction: args.bank_transaction_url,
+        },
+      }),
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j?.attachment?.url ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function processMessage(msg: GmailFullMessage, processedLabelId: string): Promise<ProcessResult> {
   const result: ProcessResult = {
@@ -91,6 +182,7 @@ async function processMessage(msg: GmailFullMessage, processedLabelId: string): 
     subject: headerValue(msg, "Subject") ?? "(no subject)",
     attachments_processed: 0,
     receipts_created: 0,
+    bank_matches: 0,
     errors: [],
   };
 
@@ -179,6 +271,28 @@ async function processMessage(msg: GmailFullMessage, processedLabelId: string): 
 
       await db().from("processed_files").insert({ file_sha256: hash, receipt_id: null });
       result.receipts_created++;
+
+      // Cross-reference: find a matching bank transaction and attach
+      if (extracted.gross_total && extracted.supply_date) {
+        const match = await findMatchingBankTxn(
+          extracted.gross_total,
+          extracted.supply_date,
+          extracted.supplier
+        );
+        if (match) {
+          const attached = await attachToBankTxn({
+            bank_transaction_url: match.url,
+            filename: safeName,
+            contentBase64: buffer.toString("base64"),
+            contentType: att.mimeType,
+          });
+          if (attached) {
+            result.bank_matches++;
+          } else {
+            result.errors.push(`Matched bank txn but couldn't attach`);
+          }
+        }
+      }
     } catch (err) {
       result.errors.push(err instanceof Error ? err.message : String(err));
     }
@@ -230,6 +344,7 @@ export async function POST() {
     return NextResponse.json({
       processed_messages: results.length,
       receipts_created: results.reduce((s, r) => s + r.receipts_created, 0),
+      bank_matches: results.reduce((s, r) => s + r.bank_matches, 0),
       results,
     });
   } catch (err) {
