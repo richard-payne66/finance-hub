@@ -41,10 +41,24 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
       if (note.trim()) form.append("note", note.trim());
 
       const res = await fetch("/api/process-receipt", { method: "POST", body: form });
-      const json = await res.json();
 
       if (res.status === 409) { setPhase("dupe"); return; }
-      if (!res.ok) { setErrorMsg(json.error ?? "Upload failed."); setPhase("error"); return; }
+
+      // Try to parse JSON; fall back to text so we can see what's broken
+      let detail = "";
+      try {
+        const j = await res.json();
+        detail = j.error ?? j.message ?? JSON.stringify(j);
+      } catch {
+        try { detail = (await res.text()).slice(0, 400); }
+        catch { detail = "(no body)"; }
+      }
+
+      if (!res.ok) {
+        setErrorMsg(`HTTP ${res.status}: ${detail}`);
+        setPhase("error");
+        return;
+      }
 
       setPhase("done");
       setNote(""); // clear note so next capture starts fresh

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { AuditEntry } from "@/app/lib/audit-log";
 
 type Summary = { total: number; auto_applied: number; queued: number; skipped: number; errors: number; cumulative_amount: number };
@@ -84,7 +85,13 @@ export default function AutoCategoriseCard() {
 
       <div className="grid grid-cols-3 gap-3 mb-4">
         <Stat label="Auto-applied" value={s.auto_applied} accent="emerald" />
-        <Stat label="Need a look" value={s.queued} accent={s.queued > 0 ? "amber" : "muted"} />
+        <ClickableStat
+          label="Need a look"
+          value={s.queued}
+          accent={s.queued > 0 ? "amber" : "muted"}
+          href="/review"
+          sublabel={s.queued > 0 ? "tap to review" : undefined}
+        />
         <Stat label="Skipped" value={s.skipped} accent="muted" sublabel="(personal)" />
       </div>
 
@@ -123,6 +130,19 @@ function Stat({ label, value, accent, sublabel }: { label: string; value: number
       <p className={`text-2xl font-black mt-1 ${color}`}>{value}</p>
       {sublabel && <p className="text-[9px] text-muted/40 mt-0.5">{sublabel}</p>}
     </div>
+  );
+}
+
+function ClickableStat({ label, value, accent, sublabel, href }: { label: string; value: number; accent: "emerald" | "amber" | "muted"; sublabel?: string; href: string }) {
+  const color = accent === "emerald" ? "text-emerald-400"
+              : accent === "amber"   ? "text-amber-400"
+              :                        "text-muted";
+  return (
+    <Link href={href} className="bg-white/3 rounded-lg p-3 text-center hover:bg-white/[0.06] transition-colors">
+      <p className="text-[9px] text-muted/60 uppercase tracking-widest font-bold">{label}</p>
+      <p className={`text-2xl font-black mt-1 ${color}`}>{value}</p>
+      {sublabel && <p className="text-[9px] text-muted/40 mt-0.5">{sublabel}</p>}
+    </Link>
   );
 }
 
