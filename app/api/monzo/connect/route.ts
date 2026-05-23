@@ -13,7 +13,7 @@ export async function GET() {
     secure: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 600,
+    maxAge: 3600, // 1 hour — Monzo's web auth + SCA push can take a while
   });
   return res;
 }

@@ -14,7 +14,7 @@ export async function GET() {
     secure: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 600, // 10 min
+    maxAge: 3600,
   });
   return res;
 }

@@ -13,7 +13,7 @@ export async function GET() {
     secure: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 600,
+    maxAge: 3600,
   });
   return res;
 }
