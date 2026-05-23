@@ -12,6 +12,21 @@ type FaBank = {
   current_balance: string;
   bank_name: string;
   name: string;
+  updated_at?: string;
+  latest_activity_date?: string;
+  marked_for_review_count?: number;
+  unexplained_transaction_count?: number;
+  bank_feed_enabled?: boolean;
+};
+
+export type BankSnapshot = {
+  name: string;
+  balance: number;
+  last_activity: string | null;       // ISO date
+  days_since_activity: number | null; // null if no activity ever
+  marked_for_review: number;
+  unexplained: number;
+  stale: boolean;                     // >14 days since last activity
 };
 type FaInvoice = {
   url: string;
@@ -30,9 +45,16 @@ export type DashboardStats = {
   connected: boolean;
 
   // Cash position
-  cash_total: number;
-  cash_after_tax: number; // bank total minus owed_now
+  cash_total: number;          // sum of all active business accounts
+  cash_total_fresh: number;    // sum of only non-stale accounts (last 14 days)
+  cash_after_tax: number;      // cash_total minus owed_now
   owed_now: number;
+
+  // Accuracy diagnostics
+  banks: BankSnapshot[];
+  stale_accounts_count: number;
+  total_marked_for_review: number;     // transactions needing categorisation
+  total_unexplained: number;           // transactions FA can't auto-explain
 
   // Invoices (money OWED TO YOU)
   invoices_total_owed_to_you: number;
@@ -80,8 +102,13 @@ export async function GET() {
       return NextResponse.json<DashboardStats>({
         connected: false,
         cash_total: 0,
+        cash_total_fresh: 0,
         cash_after_tax: 0,
         owed_now: 0,
+        banks: [],
+        stale_accounts_count: 0,
+        total_marked_for_review: 0,
+        total_unexplained: 0,
         invoices_total_owed_to_you: 0,
         invoices_overdue_count: 0,
         invoices_overdue_total: 0,
@@ -100,10 +127,37 @@ export async function GET() {
       db().from("kv").select("value").eq("key", "manual_tax_liabilities").maybeSingle(),
     ]);
 
-    // Cash: business accounts only, active status
-    const cash_total = banksRes.bank_accounts
-      .filter((b) => !b.is_personal && b.status === "active")
-      .reduce((s, b) => s + parseAmount(b.current_balance), 0);
+    // Cash: business accounts only, active status, balance != 0
+    const STALE_DAYS = 14;
+    const now = Date.now();
+    const activeBusiness = banksRes.bank_accounts.filter(
+      (b) => !b.is_personal && b.status === "active"
+    );
+
+    const banks: BankSnapshot[] = activeBusiness
+      .map((b) => {
+        const lastActivity = b.latest_activity_date ?? null;
+        const daysSince = lastActivity
+          ? Math.floor((now - new Date(lastActivity).getTime()) / 86400000)
+          : null;
+        return {
+          name: b.name,
+          balance: parseAmount(b.current_balance),
+          last_activity: lastActivity,
+          days_since_activity: daysSince,
+          marked_for_review: b.marked_for_review_count ?? 0,
+          unexplained: b.unexplained_transaction_count ?? 0,
+          stale: daysSince === null || daysSince > STALE_DAYS,
+        };
+      })
+      // Drop dormant £0 accounts that haven't been touched in over a year — they're noise
+      .filter((b) => !(b.balance === 0 && (b.days_since_activity ?? 9999) > 365));
+
+    const cash_total = banks.reduce((s, b) => s + b.balance, 0);
+    const cash_total_fresh = banks.filter((b) => !b.stale).reduce((s, b) => s + b.balance, 0);
+    const stale_accounts_count = banks.filter((b) => b.stale).length;
+    const total_marked_for_review = banks.reduce((s, b) => s + b.marked_for_review, 0);
+    const total_unexplained = banks.reduce((s, b) => s + b.unexplained, 0);
 
     // owed_now = unpaid VAT payments + unpaid finalised CT + unpaid manual lines
     const vatUnpaid = (vatRes.vat_returns ?? []).flatMap((r) =>
@@ -149,8 +203,13 @@ export async function GET() {
     return NextResponse.json<DashboardStats>({
       connected: true,
       cash_total,
+      cash_total_fresh,
       cash_after_tax,
       owed_now,
+      banks,
+      stale_accounts_count,
+      total_marked_for_review,
+      total_unexplained,
       invoices_total_owed_to_you,
       invoices_overdue_count,
       invoices_overdue_total,

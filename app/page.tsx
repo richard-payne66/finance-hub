@@ -2,6 +2,7 @@ import Link from "next/link";
 import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
 import StatsTiles from "./components/StatsTiles";
+import DataHealthPanel from "./components/DataHealthPanel";
 
 export default function Home() {
   return (
@@ -37,8 +38,13 @@ export default function Home() {
       </div>
 
       {/* Live stat tiles */}
-      <div className="mb-8">
+      <div className="mb-4">
         <StatsTiles />
+      </div>
+
+      {/* Data accuracy / freshness — answers "do I trust these numbers?" */}
+      <div className="mb-8">
+        <DataHealthPanel />
       </div>
 
       <BacklogSection />

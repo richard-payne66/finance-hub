@@ -35,13 +35,20 @@ export default function StatsTiles() {
   }
 
   const afterTaxPositive = data.cash_after_tax >= 0;
+  const hasStaleAccounts = data.stale_accounts_count > 0;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {/* 1. After-tax cash — the most important number */}
       <Tile
         label="After Tax, You Have"
-        sublabel={data.connected ? `${GBP.format(data.cash_total)} in bank · ${GBP.format(data.owed_now)} owed` : "Connect FreeAgent for live data"}
+        sublabel={
+          !data.connected
+            ? "Connect FreeAgent for live data"
+            : hasStaleAccounts
+              ? `${GBP.format(data.cash_total)} in bank · ⚠️ ${data.stale_accounts_count} stale`
+              : `${GBP.format(data.cash_total)} in bank · ${GBP.format(data.owed_now)} owed`
+        }
         value={data.connected ? GBP.format(data.cash_after_tax) : "—"}
         valueClass={afterTaxPositive ? "text-emerald-400" : "text-red-400"}
       />
