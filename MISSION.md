@@ -104,10 +104,20 @@ Build priority: 1 → 2 → 3 → 5 → 4 → 6 → 7.
 
 ## Status
 
-- ✅ #1 Auto-categorisation — shipped 2026-05-23. Daily cron at 08:00 UTC.
-  Threshold 0.85 for auto-apply; below queued for review. Tax-efficiency
-  bias in system prompt. First batch run: 13 auto, 46 queued, 7 skipped
-  as personal (correctly).
-- ⏳ #2 Email forward — pending Google OAuth client creation
-- ⏳ #3 Monthly digest — pending #1 stable
-- ⏳ #5 #4 #6 #7 — future
+- ✅ #1 Auto-categorisation — shipped 2026-05-23. Daily cron 08:00 UTC.
+  Threshold 0.85 auto-apply, below queued. Tax-efficiency bias in prompt.
+- ✅ #2 Email forward — scaffolding shipped 2026-05-23. /api/gmail-receipts
+  + /api/google/{connect,callback}. **Pending:** user to add
+  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI envs
+  (Google Cloud Console OAuth setup walkthrough already provided).
+  Then visit /api/google/connect and the 15-min cron starts harvesting.
+- ✅ #3 Monthly digest — shipped 2026-05-23 as /digest page. Email send
+  will wire automatically once #2 Google creds are in place.
+- ✅ #4 'Can I expense this?' — shipped 2026-05-23. CanIExpenseWidget
+  on home page. Real-time Claude UK tax advisor.
+- ✅ #5 Anomaly detection — shipped 2026-05-23. 4 heuristics: large
+  outgoing, missing recurring, duplicate, new vendor. Calm AnomaliesCard.
+- ⏳ #6 Accountant verification — needs historical FA snapshots, not yet
+  collecting. TODO: nightly snapshot job → daily diff → flag changes.
+- ✅ #7 Dividend assistant — shipped 2026-05-23. Conservative
+  cash − tax − buffer formula. DividendCard with expandable maths.
