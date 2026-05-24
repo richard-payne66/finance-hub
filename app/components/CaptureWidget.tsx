@@ -7,10 +7,64 @@ import { heicTo, isHeic } from "heic-to";
 type Phase =
   | "idle"
   | "converting"
+  | "compressing"
   | "uploading"
   | "done"
   | "dupe"
   | "error";
+
+// Max long edge for the on-device JPEG. 1600px is plenty for Claude
+// to read a receipt; keeps file under Vercel's 4.5MB request limit.
+const MAX_LONG_EDGE = 1600;
+const JPEG_QUALITY = 0.85;
+const MAX_REASONABLE_BYTES = 3 * 1024 * 1024; // 3MB — under Vercel's edge limit
+
+// Compress an image File to a JPEG of bounded size. Returns the input
+// unchanged if it's already small enough OR if compression isn't possible
+// (PDF / unknown type).
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  if (file.size < MAX_REASONABLE_BYTES) return file;
+
+  return new Promise<File>((resolve, reject) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const longEdge = Math.max(img.width, img.height);
+        const scale = longEdge > MAX_LONG_EDGE ? MAX_LONG_EDGE / longEdge : 1;
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Could not get canvas context");
+        ctx.drawImage(img, 0, 0, w, h);
+
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(objUrl);
+            if (!blob) return reject(new Error("Canvas toBlob returned null"));
+            const newName = file.name.replace(/\.[^.]+$/, ".jpg");
+            resolve(new File([blob], newName, { type: "image/jpeg" }));
+          },
+          "image/jpeg",
+          JPEG_QUALITY
+        );
+      } catch (err) {
+        URL.revokeObjectURL(objUrl);
+        reject(err);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objUrl);
+      reject(new Error("Could not load image for compression"));
+    };
+    img.src = objUrl;
+  });
+}
 
 export default function CaptureWidget({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
@@ -32,7 +86,26 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
         });
       }
 
+      // Compress big images so we don't hit Vercel's 4.5MB request limit.
+      if (uploadFile.size > MAX_REASONABLE_BYTES) {
+        setPhase("compressing");
+        try {
+          const compressed = await compressImage(uploadFile);
+          uploadFile = compressed;
+        } catch (e) {
+          // If compression fails (eg PDF mistyped as image), just try the upload as-is.
+          console.warn("Compression skipped:", e);
+        }
+      }
+
       setPhase("uploading");
+
+      // Final size check — error early with a clear message if still too big
+      if (uploadFile.size > 4 * 1024 * 1024) {
+        setErrorMsg(`File too large after compression: ${(uploadFile.size / 1024 / 1024).toFixed(1)}MB. Try a smaller image.`);
+        setPhase("error");
+        return;
+      }
 
       const source = uploadFile === file ? "upload" : "photo";
       const form = new FormData();
@@ -76,7 +149,7 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
     e.target.value = "";
   }
 
-  const busy = phase === "converting" || phase === "uploading";
+  const busy = phase === "converting" || phase === "compressing" || phase === "uploading";
 
   return (
     <div className={compact
@@ -124,6 +197,9 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
 
       {phase === "converting" && (
         <p className="text-xs text-muted/60 mt-3 animate-pulse">Converting HEIC…</p>
+      )}
+      {phase === "compressing" && (
+        <p className="text-xs text-muted/60 mt-3 animate-pulse">Shrinking image…</p>
       )}
       {phase === "uploading" && (
         <p className="text-xs text-muted/60 mt-3 animate-pulse">Extracting with Claude…</p>

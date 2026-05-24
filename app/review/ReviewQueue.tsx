@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AuditEntry } from "@/app/lib/audit-log";
 
-type Cat = { url: string; description: string; group: string | undefined; allowable_for_tax?: boolean };
+type Cat = {
+  url: string;
+  description: string;
+  group: string | undefined;
+  allowable_for_tax?: boolean;
+  usage_count?: number;
+};
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const fmtDate = (iso: string) =>
@@ -154,16 +160,35 @@ function ReviewCard({
 }) {
   const isOut = e.txn_amount < 0;
   const selectedCategory = override || e.category_url || "";
+  const [showAll, setShowAll] = useState(false);
 
-  // Group categories by FA group for the picker
-  const grouped = useMemo(() => {
-    const m = new Map<string, Cat[]>();
+  // Split categories into "frequently used" (any usage_count > 0) and the rest.
+  // Each section grouped by FA group_description.
+  const { frequentByGroup, restByGroup, frequentCount } = useMemo(() => {
+    const freq: Cat[] = [];
+    const rest: Cat[] = [];
     for (const c of categories) {
-      const g = c.group ?? "Other";
-      if (!m.has(g)) m.set(g, []);
-      m.get(g)!.push(c);
+      if ((c.usage_count ?? 0) > 0) freq.push(c);
+      else rest.push(c);
     }
-    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+    // Sort frequently-used by usage descending (most-used first)
+    freq.sort((a, b) => (b.usage_count ?? 0) - (a.usage_count ?? 0));
+
+    const groupBy = (list: Cat[]) => {
+      const m = new Map<string, Cat[]>();
+      for (const c of list) {
+        const g = c.group ?? "Other";
+        if (!m.has(g)) m.set(g, []);
+        m.get(g)!.push(c);
+      }
+      return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+    };
+
+    return {
+      frequentByGroup: freq, // flat — already ranked by usage
+      restByGroup: groupBy(rest),
+      frequentCount: freq.length,
+    };
   }, [categories]);
 
   return (
@@ -196,18 +221,40 @@ function ReviewCard({
         )}
       </div>
 
-      {/* Override picker */}
+      {/* Override picker — defaults to frequently-used; toggle for all */}
       <label className="block">
-        <span className="text-[9px] uppercase tracking-widest font-bold text-muted/60">Category to apply</span>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] uppercase tracking-widest font-bold text-muted/60">Category to apply</span>
+          {frequentCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="text-[9px] uppercase tracking-widest font-bold text-muted/50 hover:text-foreground"
+            >
+              {showAll ? `Show frequent (${frequentCount}) ▴` : `Show all (${categories.length}) ▾`}
+            </button>
+          )}
+        </div>
         <select
           value={selectedCategory}
           onChange={(ev) => onOverrideChange(ev.target.value)}
           disabled={busy}
-          className="mt-1 w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-white/30"
+          className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-white/30"
           style={{ fontSize: "16px" }}
         >
           <option value="">— choose —</option>
-          {grouped.map(([group, cats]) => (
+          {frequentCount > 0 && (
+            <optgroup label={`★ Frequently used (${frequentCount})`}>
+              {frequentByGroup.map((c) => (
+                <option key={c.url} value={c.url}>
+                  {c.description}
+                  {c.usage_count ? ` · used ${c.usage_count}×` : ""}
+                  {!c.allowable_for_tax ? " (not tax-deductible)" : ""}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {(showAll || frequentCount === 0) && restByGroup.map(([group, cats]) => (
             <optgroup key={group} label={group}>
               {cats.map((c) => (
                 <option key={c.url} value={c.url}>

@@ -12,9 +12,8 @@ export const maxDuration = 60;
 
 const MAX_LONG_EDGE = 2576; // px — above this sharp resizes before sending to Claude
 
-// ── In-memory categories cache ────────────────────────────────────────────────
-// Categories change at most once per FreeAgent sync (Phase 6). Caching for 1h
-// avoids a DB round-trip on every single receipt upload.
+// Pull categories from the kv-cached FreeAgent chart of accounts.
+// (The old freeagent_categories table was never populated.)
 type CategoriesCache = { json: string; expiresAt: number };
 let _categoriesCache: CategoriesCache | null = null;
 
@@ -23,19 +22,21 @@ async function getCategoriesJson(): Promise<string> {
   if (_categoriesCache && now < _categoriesCache.expiresAt) {
     return _categoriesCache.json;
   }
-  const { data } = await db()
-    .from("freeagent_categories")
-    .select("category_url, description, category_type")
-    .order("usage_count", { ascending: false });
-  const json = JSON.stringify(
-    (data ?? []).map((c) => ({
-      url: c.category_url,
-      description: c.description,
-      type: c.category_type,
-    }))
-  );
-  _categoriesCache = { json, expiresAt: now + 60 * 60 * 1000 }; // 1 hour
-  return json;
+  try {
+    const { getCategories } = await import("@/app/lib/fa-categories");
+    const cats = await getCategories().catch(() => []);
+    const json = JSON.stringify(
+      cats.map((c) => ({
+        url: c.url,
+        description: c.description,
+        type: c.group_description,
+      }))
+    );
+    _categoriesCache = { json, expiresAt: now + 60 * 60 * 1000 };
+    return json;
+  } catch {
+    return "[]";
+  }
 }
 
 export async function POST(req: NextRequest) {
