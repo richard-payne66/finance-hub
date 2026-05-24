@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { api as faApi, isConnected as faConnected } from "@/app/lib/freeagent";
-import { api as mzApi, isConnected as mzConnected, type MonzoApiError } from "@/app/lib/monzo";
 import { db } from "@/app/lib/db";
 import { errorResponse } from "@/app/lib/api-helpers";
 
@@ -29,7 +28,6 @@ export type Forecast = {
   status_note: string;
   data_sources: {
     freeagent: boolean;
-    monzo: boolean;
   };
   updated_at: string;
 };
@@ -46,7 +44,7 @@ export async function GET() {
   try {
     const events: ForecastEvent[] = [];
     let cashToday = 0;
-    const sources = { freeagent: false, monzo: false };
+    const sources = { freeagent: false };
 
     // Direct-debit flags per tax kind (user-set)
     const ddRow = await db().from("kv").select("value").eq("key", "dd_flags").maybeSingle();
@@ -54,7 +52,7 @@ export async function GET() {
       ? (() => { try { return JSON.parse(ddRow.data.value); } catch { return {}; } })()
       : {};
 
-    // -- Cash today: FA banks (fresh) + Monzo accounts/pots --
+    // -- Cash today: FA banks (fresh feeds only) --
     if (await faConnected()) {
       sources.freeagent = true;
       try {
@@ -129,31 +127,6 @@ export async function GET() {
       } catch (e) {
         // FA error — just degrade gracefully
         console.error("Forecast FA error:", e);
-      }
-    }
-
-    // Monzo pots (additive to cashToday — but DON'T double-count if FA also
-    // tracks them; we already filter FA pots that are stale, so live Monzo
-    // pots become the source of truth.)
-    if (await mzConnected()) {
-      try {
-        const accounts = await mzApi<{ accounts: Array<{ id: string; closed: boolean }> }>("/accounts");
-        for (const a of accounts.accounts.filter((a) => !a.closed)) {
-          const bal = await mzApi<{ total_balance: number }>(`/balance?account_id=${a.id}`);
-          // total_balance includes pots
-          // Replace FA contribution for Monzo accounts: simplest is to NOT add
-          // again (Monzo is reflected in FA's Monzo Main bank account balance,
-          // which we already added). But Monzo POTS specifically aren't in FA
-          // current_balance — they're separate FA accounts that may be stale.
-          // For v1, just trust the FA bank totals and use Monzo only for the
-          // pots tile elsewhere. Skipping additive logic here to avoid double-counting.
-          void bal;
-        }
-        sources.monzo = true;
-      } catch (e) {
-        if ((e as MonzoApiError)?.code !== "sca_required") {
-          console.error("Forecast Monzo error:", e);
-        }
       }
     }
 

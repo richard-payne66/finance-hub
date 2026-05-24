@@ -1,28 +1,16 @@
 import { NextResponse } from "next/server";
 import { api as faApi, isConnected as faConnected } from "@/app/lib/freeagent";
-import { api as monzoApi, isConnected as monzoConnected, type MonzoApiError } from "@/app/lib/monzo";
 import { db } from "@/app/lib/db";
 import { errorResponse } from "@/app/lib/api-helpers";
 
-// Three-way reconciliation across Monzo (source of truth for bank),
-// FreeAgent (source of truth for books), and Gmail/Supabase receipts.
+// Two-way reconciliation: FreeAgent bank transactions ↔ Receipts.
+// (Monzo direct integration was removed — FA's bank feed already pulls
+// every Monzo transaction, so we don't need Monzo as a separate source.)
 //
 // Default window: 90 days. Pass ?days=365 (etc.) to widen.
-// Matching: amount within £0.01 + date within ±2 days for bank-to-bank,
-// ±7 days for receipt-to-bank.
 
 export const maxDuration = 300;
 
-type MonzoAccount = { id: string; closed: boolean; type: string };
-type MonzoTxn = {
-  id: string;
-  created: string;       // ISO
-  amount: number;        // pence, signed
-  currency: string;
-  description: string;
-  merchant?: { name?: string } | null;
-  notes?: string;
-};
 type FaTxn = {
   url: string;
   amount: string;
@@ -30,6 +18,7 @@ type FaTxn = {
   description: string;
   full_description?: string;
 };
+
 type Receipt = {
   id: string;
   supplier: string | null;
@@ -38,17 +27,18 @@ type Receipt = {
   source_ref: string | null;
 };
 
-type MatchedMonzoFaItem = {
-  date: string;
-  amount: number;
-  monzo_desc: string;
-  fa_desc: string;
-};
-type OnlyInMonzoItem = {
-  monzo_id: string;
+type FaTxnMatched = {
+  fa_url: string;
   date: string;
   amount: number;
   description: string;
+  has_receipt: boolean;
+};
+type MatchedSample = {
+  date: string;
+  amount: number;
+  fa_desc: string;
+  receipt_supplier: string | null;
 };
 type OnlyInFaItem = {
   fa_url: string;
@@ -65,23 +55,18 @@ type OrphanReceiptItem = {
 
 export type ReconcileReport = {
   window_days: number;
-  monzo_connected: boolean;
   fa_connected: boolean;
-  monzo_sca_required?: boolean;
   totals: {
-    monzo_txns: number;
     fa_txns: number;
     receipts: number;
-    matched_monzo_fa: number;
-    only_in_monzo: number;
-    only_in_fa: number;
     receipts_matched_to_bank: number;
+    fa_with_receipt: number;
     orphan_receipts: number;
+    fa_without_receipt: number;
   };
   samples: {
-    matched: MatchedMonzoFaItem[];
-    only_in_monzo: OnlyInMonzoItem[];
-    only_in_fa: OnlyInFaItem[];
+    matched: MatchedSample[];
+    fa_without_receipt: OnlyInFaItem[];
     orphan_receipts: OrphanReceiptItem[];
   };
   generated_at: string;
@@ -106,14 +91,16 @@ export async function GET(req: Request) {
 
     const report: ReconcileReport = {
       window_days: windowDays,
-      monzo_connected: false,
       fa_connected: false,
       totals: {
-        monzo_txns: 0, fa_txns: 0, receipts: 0,
-        matched_monzo_fa: 0, only_in_monzo: 0, only_in_fa: 0,
-        receipts_matched_to_bank: 0, orphan_receipts: 0,
+        fa_txns: 0,
+        receipts: 0,
+        receipts_matched_to_bank: 0,
+        fa_with_receipt: 0,
+        orphan_receipts: 0,
+        fa_without_receipt: 0,
       },
-      samples: { matched: [], only_in_monzo: [], only_in_fa: [], orphan_receipts: [] },
+      samples: { matched: [], fa_without_receipt: [], orphan_receipts: [] },
       generated_at: new Date().toISOString(),
     };
 
@@ -136,35 +123,6 @@ export async function GET(req: Request) {
     }
     report.totals.fa_txns = faTxns.length;
 
-    // -- Monzo: pull current-account transactions --
-    const monzoTxns: MonzoTxn[] = [];
-    if (await monzoConnected()) {
-      report.monzo_connected = true;
-      try {
-        const acc = await monzoApi<{ accounts: MonzoAccount[] }>("/accounts");
-        const active = acc.accounts.find((a) => !a.closed);
-        if (active) {
-          // Monzo /transactions max 100 per page; paginate via since= cursor
-          let since = cutoffISO;
-          for (let i = 0; i < 50; i++) {
-            const tr = await monzoApi<{ transactions: MonzoTxn[] }>(
-              `/transactions?account_id=${active.id}&since=${encodeURIComponent(since)}&limit=100&expand[]=merchant`
-            );
-            const t = tr.transactions ?? [];
-            if (t.length === 0) break;
-            monzoTxns.push(...t);
-            if (t.length < 100) break;
-            since = t[t.length - 1].created;
-          }
-        }
-      } catch (err) {
-        if ((err as MonzoApiError)?.code === "sca_required") {
-          report.monzo_sca_required = true;
-        }
-      }
-    }
-    report.totals.monzo_txns = monzoTxns.length;
-
     // -- Receipts from Supabase --
     const { data: rcs } = await db()
       .from("receipts")
@@ -173,87 +131,65 @@ export async function GET(req: Request) {
     const receipts: Receipt[] = (rcs ?? []) as Receipt[];
     report.totals.receipts = receipts.length;
 
-    // -- Match Monzo ↔ FA --
-    // Normalise: Monzo amount = pence signed; convert to GBP signed.
-    // FA amount = string of signed pounds.
-    type NMonzo = { id: string; date: string; amount: number; description: string; matched: boolean };
-    type NFa    = { url: string; date: string; amount: number; description: string; matched: boolean };
-
-    const mNorm: NMonzo[] = monzoTxns.map((m) => ({
-      id: m.id,
-      date: m.created.slice(0, 10),
-      amount: m.amount / 100,
-      description: m.merchant?.name ?? m.description ?? "",
-      matched: false,
-    }));
-    const fNorm: NFa[] = faTxns.map((f) => ({
-      url: f.url,
+    // Normalise FA
+    const fNorm: FaTxnMatched[] = faTxns.map((f) => ({
+      fa_url: f.url,
       date: f.dated_on,
       amount: parseAmount(f.amount),
       description: f.full_description ?? f.description,
-      matched: false,
+      has_receipt: false,
     }));
 
-    // For each Monzo txn, find best FA match (exact amount, ≤2 days apart)
-    for (const m of mNorm) {
-      let best: NFa | null = null;
-      let bestGap = Infinity;
-      for (const f of fNorm) {
-        if (f.matched) continue;
-        if (Math.abs(f.amount - m.amount) > 0.01) continue;
-        const gap = daysBetween(m.date, f.date);
-        if (gap > 2) continue;
-        if (gap < bestGap) { best = f; bestGap = gap; }
-      }
-      if (best) {
-        m.matched = true;
-        best.matched = true;
-      }
-    }
-
-    // -- Match receipts to (Monzo OR FA) by amount + date --
-    let receiptsMatchedToBank = 0;
     const orphanReceipts: Receipt[] = [];
+    const matchedSamples: MatchedSample[] = [];
+
+    // For each receipt, try to find a matching FA transaction (exact amount, ±7 days)
     for (const r of receipts) {
       if (!r.gross_total || !r.supply_date) {
         orphanReceipts.push(r);
         continue;
       }
       const target = new Date(r.supply_date).getTime();
-      const matchesMonzo = mNorm.find((m) => Math.abs(Math.abs(m.amount) - r.gross_total!) < 0.01 && Math.abs(new Date(m.date).getTime() - target) <= 7 * 86400000);
-      const matchesFa = fNorm.find((f) => Math.abs(Math.abs(f.amount) - r.gross_total!) < 0.01 && Math.abs(new Date(f.date).getTime() - target) <= 7 * 86400000);
-      if (matchesMonzo || matchesFa) {
-        receiptsMatchedToBank++;
+      const matchIndex = fNorm.findIndex(
+        (f) =>
+          !f.has_receipt &&
+          Math.abs(Math.abs(f.amount) - r.gross_total!) < 0.01 &&
+          Math.abs(new Date(f.date).getTime() - target) <= 7 * 86400000
+      );
+
+      if (matchIndex >= 0) {
+        fNorm[matchIndex].has_receipt = true;
+        report.totals.receipts_matched_to_bank++;
+        if (matchedSamples.length < 10) {
+          matchedSamples.push({
+            date: fNorm[matchIndex].date,
+            amount: fNorm[matchIndex].amount,
+            fa_desc: fNorm[matchIndex].description,
+            receipt_supplier: r.supplier,
+          });
+        }
       } else {
         orphanReceipts.push(r);
       }
     }
 
-    report.totals.matched_monzo_fa = mNorm.filter((m) => m.matched).length;
-    report.totals.only_in_monzo = mNorm.filter((m) => !m.matched).length;
-    report.totals.only_in_fa = fNorm.filter((f) => !f.matched).length;
-    report.totals.receipts_matched_to_bank = receiptsMatchedToBank;
+    report.totals.fa_with_receipt = fNorm.filter((f) => f.has_receipt).length;
+    report.totals.fa_without_receipt = fNorm.filter((f) => !f.has_receipt && f.amount < 0).length;
     report.totals.orphan_receipts = orphanReceipts.length;
 
-    // Samples for the UI
-    report.samples.matched = mNorm.filter((m) => m.matched).slice(0, 10).map((m) => {
-      const f = fNorm.find((f) => Math.abs(f.amount - m.amount) < 0.01 && daysBetween(m.date, f.date) <= 2);
-      return { date: m.date, amount: m.amount, monzo_desc: m.description, fa_desc: f?.description ?? "?" };
-    });
-    report.samples.only_in_monzo = mNorm
-      .filter((m) => !m.matched)
+    report.samples.matched = matchedSamples;
+    report.samples.fa_without_receipt = fNorm
+      .filter((f) => !f.has_receipt && f.amount < 0)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 20)
-      .map((m) => ({ monzo_id: m.id, date: m.date, amount: m.amount, description: m.description }));
-    report.samples.only_in_fa = fNorm
-      .filter((f) => !f.matched)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 20)
-      .map((f) => ({ fa_url: f.url, date: f.date, amount: f.amount, description: f.description }));
+      .map((f) => ({ fa_url: f.fa_url, date: f.date, amount: f.amount, description: f.description }));
     report.samples.orphan_receipts = orphanReceipts
       .sort((a, b) => (b.supply_date ?? "").localeCompare(a.supply_date ?? ""))
       .slice(0, 20)
       .map((r) => ({ receipt_id: r.id, date: r.supply_date, amount: r.gross_total, supplier: r.supplier }));
+
+    // Suppress unused-locals
+    void daysBetween;
 
     return NextResponse.json(report);
   } catch (err) {

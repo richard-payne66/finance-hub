@@ -2,7 +2,6 @@ import Link from "next/link";
 import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
 import DataHealthPanel from "./components/DataHealthPanel";
-import MonzoPotsPanel from "./components/MonzoPotsPanel";
 import ForecastPanel from "./components/ForecastPanel";
 import OptimisationsPanel from "./components/OptimisationsPanel";
 import AutoCategoriseCard from "./components/AutoCategoriseCard";
@@ -82,7 +81,6 @@ export default function Home() {
         </summary>
         <div className="mt-4 flex flex-col gap-4">
           <HMRCPanel />
-          <MonzoPotsPanel />
           <DataHealthPanel />
         </div>
       </details>

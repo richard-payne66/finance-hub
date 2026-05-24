@@ -58,76 +58,28 @@ export default function ReconcileView() {
       {!report && !loading && (
         <div className="bg-surface border border-white/8 rounded-2xl p-8 text-center">
           <p className="text-sm text-muted/70 mb-4">
-            Pick a window above to start. This pulls every Monzo transaction, every FreeAgent transaction, and every receipt in that period and cross-checks them.
+            Pick a window above. This cross-checks every receipt in the period against every FreeAgent bank transaction and reports anything that doesn&apos;t line up.
           </p>
           <p className="text-[11px] text-muted/40">
-            A year typically takes 15-30 seconds to crunch.
+            A year typically takes 10-20 seconds.
           </p>
         </div>
       )}
 
       {report && (
         <>
-          {!report.monzo_connected && (
-            <Banner kind="warn" text={<>Monzo not connected — only FA/receipts can be cross-checked. <a href="/api/monzo/connect" className="underline">Connect Monzo →</a></>} />
-          )}
-          {report.monzo_sca_required && (
-            <Banner kind="warn" text="Monzo connected but needs re-approval. Open the Monzo app and approve Finance Hub, then re-run." />
-          )}
           {!report.fa_connected && (
             <Banner kind="warn" text={<>FreeAgent not connected. <a href="/api/freeagent/connect" className="underline">Connect FA →</a></>} />
           )}
 
-          {/* Headline summary */}
+          {/* Headline */}
           <Headline report={report} />
 
-          {/* Detail sections */}
+          {/* Receipts without matching bank txn */}
           <Section
-            title="✗ Only in Monzo, not in FreeAgent"
-            count={report.totals.only_in_monzo}
-            subtitle="Real spending that hasn't reached your books yet. Usually FA catches up via its bank feed; if these persist, the feed might be broken."
-            empty="✓ All Monzo transactions are reflected in FreeAgent."
-          >
-            {report.samples.only_in_monzo.map((m) => (
-              <Row key={m.monzo_id}
-                   date={m.date}
-                   amount={m.amount}
-                   description={m.description}
-                   ctaLabel={null}
-              />
-            ))}
-            {report.totals.only_in_monzo > report.samples.only_in_monzo.length && (
-              <p className="text-[10px] text-muted/40 pt-2">
-                + {report.totals.only_in_monzo - report.samples.only_in_monzo.length} more
-              </p>
-            )}
-          </Section>
-
-          <Section
-            title="✗ Only in FreeAgent, not in Monzo"
-            count={report.totals.only_in_fa}
-            subtitle="Usually manual entries, transfers, or pre-feed historical data. Worth a look if anything seems unfamiliar."
-            empty="✓ Every FA transaction has a Monzo counterpart."
-          >
-            {report.samples.only_in_fa.map((f) => (
-              <Row key={f.fa_url}
-                   date={f.date}
-                   amount={f.amount}
-                   description={f.description}
-                   ctaLabel={null}
-              />
-            ))}
-            {report.totals.only_in_fa > report.samples.only_in_fa.length && (
-              <p className="text-[10px] text-muted/40 pt-2">
-                + {report.totals.only_in_fa - report.samples.only_in_fa.length} more
-              </p>
-            )}
-          </Section>
-
-          <Section
-            title="📎 Receipts without a matching bank transaction"
+            title="📎 Receipts with no matching bank transaction"
             count={report.totals.orphan_receipts}
-            subtitle="The receipt was logged but no Monzo/FA transaction matches — could be a personal card, cash, or matched outside the ±7-day window."
+            subtitle="Receipt was logged but no bank line matches — could be paid on personal card, cash, or matched outside ±7-day window."
             empty="✓ Every receipt is paired with a bank transaction."
           >
             {report.samples.orphan_receipts.map((r) => (
@@ -146,19 +98,43 @@ export default function ReconcileView() {
             )}
           </Section>
 
-          {/* Matched sample for confidence */}
+          {/* Bank txns with no receipt */}
+          <Section
+            title="🧾 Bank transactions without a receipt"
+            count={report.totals.fa_without_receipt}
+            subtitle="Outgoings in FA that have no matching receipt on file. Forward the email receipts or snap photos to bring this down."
+            empty="✓ Every outgoing has a receipt attached."
+          >
+            {report.samples.fa_without_receipt.map((f) => (
+              <Row key={f.fa_url}
+                   date={f.date}
+                   amount={f.amount}
+                   description={f.description}
+                   ctaLabel={null}
+              />
+            ))}
+            {report.totals.fa_without_receipt > report.samples.fa_without_receipt.length && (
+              <p className="text-[10px] text-muted/40 pt-2">
+                + {report.totals.fa_without_receipt - report.samples.fa_without_receipt.length} more
+              </p>
+            )}
+          </Section>
+
+          {/* Matched sample */}
           {report.samples.matched.length > 0 && (
             <Section
-              title={`✓ Sample matched (${report.totals.matched_monzo_fa} total)`}
+              title={`✓ Sample matched (${report.totals.fa_with_receipt} total)`}
               count={null}
-              subtitle="What 'reconciled' looks like — Monzo amount + FA amount line up within ±2 days."
+              subtitle="Receipts paired with their bank transaction — these are filed correctly."
               empty=""
               muted
             >
               {report.samples.matched.map((m, i) => (
                 <div key={i} className="flex items-center justify-between py-2 px-3 border-t border-white/5 first:border-t-0">
                   <div className="min-w-0">
-                    <p className="text-xs text-muted/70 truncate">{m.monzo_desc}</p>
+                    <p className="text-xs text-muted/70 truncate">
+                      {m.receipt_supplier ?? "(no supplier)"} · <span className="text-muted/50">{m.fa_desc}</span>
+                    </p>
                     <p className="text-[10px] text-muted/40 mt-0.5">{fmtDate(m.date)}</p>
                   </div>
                   <p className="text-xs font-mono font-bold text-muted/80">{GBP.format(m.amount)}</p>
@@ -182,25 +158,24 @@ function Banner({ kind, text }: { kind: "warn"; text: React.ReactNode }) {
 }
 
 function Headline({ report }: { report: ReconcileReport }) {
-  const total = report.totals.matched_monzo_fa + report.totals.only_in_monzo + report.totals.only_in_fa;
-  const matchedPct = total > 0 ? Math.round((report.totals.matched_monzo_fa / total) * 100) : 100;
-  const colour = matchedPct >= 95 ? "text-emerald-400" : matchedPct >= 80 ? "text-amber-400" : "text-rose-400";
+  const total = report.totals.receipts;
+  const matchedPct = total > 0 ? Math.round((report.totals.receipts_matched_to_bank / total) * 100) : 100;
+  const colour = matchedPct >= 95 ? "text-emerald-400" : matchedPct >= 70 ? "text-amber-400" : "text-rose-400";
 
   return (
     <div className="bg-gradient-to-br from-surface to-surface/50 border border-white/8 rounded-2xl p-6 mb-6">
       <div className="flex items-baseline gap-3 mb-2">
         <p className={`text-5xl font-black tracking-tight ${colour}`}>{matchedPct}%</p>
-        <p className="text-sm text-muted/70">reconciled</p>
+        <p className="text-sm text-muted/70">of receipts paired with a bank transaction</p>
       </div>
       <p className="text-xs text-muted/60 leading-relaxed">
-        {report.totals.matched_monzo_fa} of {total} bank transactions line up across Monzo and FreeAgent. {" "}
-        {report.totals.receipts_matched_to_bank} of {report.totals.receipts} receipts are paired with a bank transaction.
+        {report.totals.receipts_matched_to_bank} of {report.totals.receipts} receipts matched.
+        {" "}{report.totals.fa_without_receipt} bank outgoings still missing a receipt.
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 text-center">
-        <Stat label="Monzo" value={report.totals.monzo_txns} />
+      <div className="grid grid-cols-3 gap-3 mt-5 text-center">
         <Stat label="FreeAgent" value={report.totals.fa_txns} />
         <Stat label="Receipts" value={report.totals.receipts} />
-        <Stat label="Problems" value={report.totals.only_in_monzo + report.totals.only_in_fa + report.totals.orphan_receipts} accent="amber" />
+        <Stat label="To fix" value={report.totals.orphan_receipts + report.totals.fa_without_receipt} accent="amber" />
       </div>
     </div>
   );
