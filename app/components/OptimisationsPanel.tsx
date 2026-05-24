@@ -10,6 +10,7 @@ export default function OptimisationsPanel() {
   const [data, setData] = useState<OptimisationsResponse | null>(null);
   const [showDone, setShowDone] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function load() {
     fetch("/api/optimisations").then((r) => r.json()).then(setData).catch(() => {});
@@ -17,8 +18,6 @@ export default function OptimisationsPanel() {
   useEffect(() => { load(); }, []);
 
   async function markDone(tip: Tip, enabled: boolean) {
-    // DD flags + categorise queue are computed elsewhere — they auto-update.
-    // Only manual optimisation_flags get persisted here.
     if (tip.id.startsWith("dd_") || tip.id === "categorise_queue") return;
     setBusyId(tip.id);
     await fetch("/api/optimisation-flags", {
@@ -28,6 +27,15 @@ export default function OptimisationsPanel() {
     });
     load();
     setBusyId(null);
+  }
+
+  function toggleExpand(id: string) {
+    setExpanded((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   if (!data) {
@@ -43,58 +51,64 @@ export default function OptimisationsPanel() {
   const doneTips = data.tips.filter((t) => t.status === "done");
 
   return (
-    <div className="bg-gradient-to-br from-emerald-500/5 to-surface border border-emerald-500/20 rounded-2xl p-6 sm:p-8">
+    <div className="bg-gradient-to-br from-emerald-500/5 to-surface border border-emerald-500/20 rounded-2xl p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3 mb-3">
-        <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-bold">
-          💸 Ways to save money
-        </p>
-        {data.done_count > 0 && (
-          <p className="text-[9px] text-emerald-400/60 font-mono">
-            {data.done_count} done ✓
+        <div>
+          <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-bold">
+            💸 Ways to save money
           </p>
-        )}
+          <p className="text-[10px] text-muted/50 mt-0.5">
+            {data.todo_count > 0
+              ? `${data.todo_count} to do · sorted by saving`
+              : "All set ✓"}
+            {data.done_count > 0 && ` · ${data.done_count} already in place`}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl sm:text-3xl font-black tracking-tight text-emerald-300 leading-none">
+            ~{GBP.format(data.total_potential_saving)}
+          </p>
+          <p className="text-[9px] text-muted/50 mt-0.5">/yr available</p>
+        </div>
       </div>
 
-      <div className="flex items-baseline gap-3 mb-2">
-        <p className="text-4xl sm:text-5xl font-black tracking-tight text-emerald-300">
-          ~{GBP.format(data.total_potential_saving)}
-        </p>
-        <p className="text-xs text-muted/60">potential annual saving</p>
-      </div>
-
-      <p className="text-sm text-muted/70 leading-relaxed mb-6">
-        {data.todo_count > 0
-          ? `${data.todo_count} concrete things you could do — sorted biggest first.`
-          : "You're doing everything on the list — nice."}
-      </p>
-
-      {/* The list of actionable tips */}
-      <div className="flex flex-col gap-3">
+      {/* TODO tips — compact one-line rows, click to expand */}
+      <div className="flex flex-col gap-1.5 mt-4">
         {todoTips.map((tip) => (
-          <TipCard key={tip.id} tip={tip} busy={busyId === tip.id} onDone={(v) => markDone(tip, v)} />
+          <CompactTipRow
+            key={tip.id}
+            tip={tip}
+            busy={busyId === tip.id}
+            expanded={expanded.has(tip.id)}
+            onToggleExpand={() => toggleExpand(tip.id)}
+            onDone={(v) => markDone(tip, v)}
+          />
         ))}
       </div>
 
+      {/* Done tips — collapsed by default */}
       {doneTips.length > 0 && (
-        <div className="mt-5 pt-4 border-t border-white/5">
+        <div className="mt-4 pt-3 border-t border-white/5">
           <button
             onClick={() => setShowDone((v) => !v)}
-            className="text-[10px] text-muted/50 hover:text-muted uppercase tracking-widest font-bold flex items-center gap-2"
+            className="text-[10px] text-emerald-400/70 hover:text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-2"
           >
-            <span>Already done ({doneTips.length})</span>
+            <span>✓ Done ({doneTips.length})</span>
             <span className="font-mono">{showDone ? "▴" : "▾"}</span>
           </button>
           {showDone && (
-            <div className="mt-3 flex flex-col gap-2 opacity-60">
+            <div className="mt-2 flex flex-col gap-1 opacity-70">
               {doneTips.map((tip) => (
-                <div key={tip.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/3">
-                  <div className="min-w-0">
-                    <p className="text-xs text-foreground/80 line-through">{tip.title}</p>
+                <div key={tip.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white/3 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-emerald-400 shrink-0">✓</span>
+                    <span className="text-foreground/80 truncate">{tip.title}</span>
                   </div>
                   <button
                     onClick={() => markDone(tip, false)}
                     disabled={busyId === tip.id || tip.id.startsWith("dd_") || tip.id === "categorise_queue"}
-                    className="text-[10px] text-muted/50 hover:text-muted shrink-0"
+                    className="text-[10px] text-muted/40 hover:text-muted shrink-0 disabled:opacity-30"
+                    title={tip.id.startsWith("dd_") || tip.id === "categorise_queue" ? "Auto-managed" : "Mark as not done"}
                   >
                     undo
                   </button>
@@ -105,72 +119,82 @@ export default function OptimisationsPanel() {
         </div>
       )}
 
-      <p className="text-[10px] text-muted/40 mt-5 leading-relaxed">
-        Estimates based on UK tax year 2025/26 for a single-director Ltd.
-        Ask your accountant before making big changes.
+      <p className="text-[9px] text-muted/30 mt-4 leading-relaxed">
+        UK tax year 2025/26 estimates for single-director Ltd. Check with your accountant before changing.
       </p>
     </div>
   );
 }
 
-function TipCard({ tip, busy, onDone }: { tip: Tip; busy: boolean; onDone: (v: boolean) => void }) {
+function CompactTipRow({
+  tip, busy, expanded, onToggleExpand, onDone,
+}: {
+  tip: Tip; busy: boolean; expanded: boolean;
+  onToggleExpand: () => void; onDone: (v: boolean) => void;
+}) {
   const isManual = !tip.id.startsWith("dd_") && tip.id !== "categorise_queue";
-  const diffColor = tip.difficulty === "easy" ? "text-emerald-400"
-                  : tip.difficulty === "medium" ? "text-amber-400"
-                  : "text-rose-400/80";
-  const diffLabel = tip.difficulty === "easy" ? "easy"
-                  : tip.difficulty === "medium" ? "5 min"
-                  : "ask accountant";
+  const diffColor = tip.difficulty === "easy" ? "text-emerald-400/70"
+                  : tip.difficulty === "medium" ? "text-amber-400/70"
+                  : "text-rose-400/70";
 
   return (
-    <div className={`bg-surface border rounded-xl p-4 ${tip.status === "in_progress" ? "border-amber-500/30" : "border-white/8"}`}>
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <p className="text-sm font-bold text-foreground">{tip.title}</p>
-            <span className={`text-[9px] font-bold uppercase tracking-widest ${diffColor}`}>
-              · {diffLabel}
-            </span>
-          </div>
-          <p className="text-[11px] text-muted/70 leading-snug">{tip.why}</p>
+    <div className={`bg-surface border rounded-lg transition-colors ${
+      tip.status === "in_progress" ? "border-amber-500/30" : "border-white/8 hover:border-white/15"
+    }`}>
+      {/* Compact summary row — always visible */}
+      <button
+        onClick={onToggleExpand}
+        className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left"
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <span className={`text-[9px] font-bold uppercase tracking-widest shrink-0 ${diffColor}`}>
+            {tip.difficulty === "easy" ? "·" : tip.difficulty === "medium" ? "··" : "···"}
+          </span>
+          <span className="text-sm text-foreground truncate">{tip.title}</span>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-sm font-bold text-emerald-400 font-mono">
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-sm font-bold text-emerald-400 font-mono">
             +{GBP.format(tip.estimated_saving)}
-          </p>
-          <p className="text-[9px] text-muted/40">/year</p>
+          </span>
+          <span className="text-[10px] text-muted/40 font-mono">{expanded ? "▴" : "▾"}</span>
         </div>
-      </div>
+      </button>
 
-      <div className="flex gap-2 mt-3 flex-wrap">
-        {tip.internal_link && (
-          <Link
-            href={tip.internal_link}
-            className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
-          >
-            Take action →
-          </Link>
-        )}
-        {tip.action_url && (
-          <a
-            href={tip.action_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-white/30 hover:text-foreground transition-colors"
-          >
-            {tip.internal_link ? "gov.uk ↗" : "Open ↗"}
-          </a>
-        )}
-        {isManual && (
-          <button
-            onClick={() => onDone(true)}
-            disabled={busy}
-            className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-40 ml-auto"
-          >
-            ✓ I&apos;m doing this
-          </button>
-        )}
-      </div>
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="px-3 pb-3 pt-1 border-t border-white/5">
+          <p className="text-[11px] text-muted/70 leading-snug mb-3">{tip.why}</p>
+          <div className="flex flex-wrap gap-2">
+            {tip.internal_link && (
+              <Link
+                href={tip.internal_link}
+                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+              >
+                Take action →
+              </Link>
+            )}
+            {tip.action_url && (
+              <a
+                href={tip.action_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-white/30 hover:text-foreground transition-colors"
+              >
+                {tip.internal_link ? "gov.uk ↗" : "Open ↗"}
+              </a>
+            )}
+            {isManual && (
+              <button
+                onClick={() => onDone(true)}
+                disabled={busy}
+                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-40 ml-auto"
+              >
+                ✓ I&apos;m doing this
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
