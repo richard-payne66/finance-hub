@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/gmail-receipts",
-      "schedule": "0 9 * * *"
+      "schedule": "0 13 * * 5"
     }
   ]
 }

@@ -1,6 +1,11 @@
 // FreeAgent category sync + cache.
 // We keep a Supabase cache and refresh it lazily (every 24h) so we don't
 // hit FA's /categories endpoint on every transaction we classify.
+//
+// FA ships ~110 categories total but most are balance-sheet entries
+// (depreciation, suspense account, prepayments) you'd never categorise
+// a real receipt to. `receiptRelevant()` below is the filter used by
+// the receipt editor + auto-categorise picker.
 
 import { db } from "@/app/lib/db";
 import { api as faApi } from "@/app/lib/freeagent";
@@ -60,4 +65,47 @@ export async function getCategories(force = false): Promise<FaCategory[]> {
 export async function findCategoryByUrl(url: string): Promise<FaCategory | null> {
   const cats = await getCategories();
   return cats.find((c) => c.url === url) ?? null;
+}
+
+// ── Filter to "categories a receipt actually goes against" ────────────────────
+//
+// Two rules combined:
+//
+//   1. Only keep "Admin expenses…" and "Cost of sales…" group_descriptions.
+//      Strips balance-sheet items, payroll, capital asset accounts,
+//      suspense/contra accounts, and income lines.
+//
+//   2. Strike specific descriptions that don't apply to a sole-director
+//      WFH film/animation Ltd: no rent (WFH), no staff entertaining
+//      (no staff), no formation costs (one-time done), no childcare
+//      scheme, no leases yet (revisit at EV), wrong pension types,
+//      no sales commissions.
+//
+// To bring the full FA list back temporarily, use `?all=true` on
+// /api/categories.
+
+const KEEP_GROUP_PREFIXES = ["Admin expenses", "Cost of sales"];
+
+const RECEIPT_IRRELEVANT_DESCRIPTIONS = new Set<string>([
+  "Charitable Donations",  // tiny (~£11/yr); accountant handles separately
+  "Childcare Vouchers",    // not enrolled
+  "Commission Paid",       // no sales commissions
+  "Cost of Sales",         // generic — use the specific cost-of-sales lines
+  "Formation Costs",       // one-off at company creation, done
+  "Interest Payable",      // no business loans
+  "Leasing Payments",      // no leases (revisit when EV happens)
+  "Pension (Annuity)",     // wrong pension type
+  "Pension (Personal/Stakeholder)", // director uses Directors' Staff Pensions
+  "Rent",                  // WFH, no commercial rent
+  "Staff Entertaining",    // no staff — use Business Entertaining
+  "Unrealized Currency Exchange Gain/Loss", // accountant-level, not a receipt
+  "VAT Penalty",           // rare; accountant handles
+  "PAYE/NI Penalty",       // rare; accountant handles
+]);
+
+export function receiptRelevant(c: FaCategory): boolean {
+  const group = c.group_description ?? "";
+  if (!KEEP_GROUP_PREFIXES.some((p) => group.startsWith(p))) return false;
+  if (RECEIPT_IRRELEVANT_DESCRIPTIONS.has(c.description)) return false;
+  return true;
 }

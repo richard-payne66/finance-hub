@@ -1,20 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { loadAuditLog } from "@/app/lib/audit-log";
-import { getCategories } from "@/app/lib/fa-categories";
+import { getCategories, receiptRelevant } from "@/app/lib/fa-categories";
 import { loadRules } from "@/app/lib/category-rules";
 import { errorResponse } from "@/app/lib/api-helpers";
 
 // GET /api/categories
-// Returns all FreeAgent categories annotated with a usage_count derived
-// from the audit log + learned rules, so the picker can rank/filter
-// to the ones Richard actually uses. Same data shape as the embedded
-// version in /api/categorisation/list — extracted here so the receipt
-// editor can reuse it without pulling the categorisation queue too.
+// Returns FA categories annotated with usage_count, **filtered down to
+// just the ones a receipt would realistically be categorised against**
+// (see receiptRelevant() in fa-categories.ts).
+//
+// Pass ?all=true to get the full unfiltered FA list — useful when the
+// accountant asks about a balance-sheet/payroll category that's hidden.
+//
+// Also: categories that have been *used* (usage_count > 0) are always
+// included even if the filter would hide them, so the editor doesn't
+// suddenly drop your existing selection from the dropdown.
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const all = new URL(req.url).searchParams.get("all") === "true";
+
     const [log, cats, rules] = await Promise.all([
       loadAuditLog(),
       getCategories().catch(() => []),
@@ -30,7 +37,11 @@ export async function GET() {
       usage.set(r.category_url, (usage.get(r.category_url) ?? 0) + (r.hits ?? 1));
     }
 
-    const annotated = cats.map((c) => ({
+    const visible = all
+      ? cats
+      : cats.filter((c) => receiptRelevant(c) || (usage.get(c.url) ?? 0) > 0);
+
+    const annotated = visible.map((c) => ({
       url: c.url,
       description: c.description,
       group: c.group_description,
@@ -38,7 +49,12 @@ export async function GET() {
       usage_count: usage.get(c.url) ?? 0,
     }));
 
-    return NextResponse.json({ categories: annotated });
+    return NextResponse.json({
+      categories: annotated,
+      filtered: !all,
+      total: cats.length,
+      shown: annotated.length,
+    });
   } catch (err) {
     return errorResponse(err);
   }

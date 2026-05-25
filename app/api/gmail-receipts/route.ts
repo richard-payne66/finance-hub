@@ -308,14 +308,28 @@ async function processMessage(msg: GmailFullMessage, processedLabelId: string): 
   return result;
 }
 
-// GET — diagnostic; returns the search query and how many would be picked up
+// GET — diagnostic; returns the search query and how many would be picked up,
+// plus the last cron-run summary so the dashboard panel can show
+// "last checked Fri 24 May · 0 new".
 export async function GET() {
   try {
     if (!(await isConnected())) {
       return NextResponse.json({ connected: false, message: "Google not connected. Visit /api/google/connect" });
     }
-    const messages = await searchMessages(QUERY, 25);
-    return NextResponse.json({ connected: true, pending_count: messages.length, query: QUERY });
+    const [messages, lastRunRow] = await Promise.all([
+      searchMessages(QUERY, 25),
+      db().from("kv").select("value").eq("key", "gmail_receipts_last_run").maybeSingle(),
+    ]);
+    let last_run: unknown = null;
+    if (lastRunRow.data?.value) {
+      try { last_run = JSON.parse(lastRunRow.data.value); } catch {}
+    }
+    return NextResponse.json({
+      connected: true,
+      pending_count: messages.length,
+      query: QUERY,
+      last_run,
+    });
   } catch (err) {
     return errorResponse(err);
   }
