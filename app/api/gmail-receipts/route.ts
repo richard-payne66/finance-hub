@@ -13,6 +13,7 @@ import {
   type GmailPart,
 } from "@/app/lib/google";
 import { extractReceipt } from "@/app/lib/claude-extract";
+import { isOwnBusiness } from "@/app/lib/own-business";
 import { api as faApi, isConnected as faIsConnected, loadTokens as faLoadTokens } from "@/app/lib/freeagent";
 import { errorResponse } from "@/app/lib/api-helpers";
 
@@ -51,9 +52,13 @@ function buildQuery({ days = 30, includeProcessed = false }: { days?: number; in
     "  OR subject:(receipt OR invoice OR \"order confirmation\" OR \"payment confirmation\" OR \"your purchase\")",
     ")",
     "has:attachment",
+    // Exclude obvious outgoing sources. Anything that slips through
+    // (e.g. FreeAgent sending an invoice copy via its own SMTP) gets
+    // caught downstream by isOwnBusiness(extracted.supplier).
     "-from:richard-payne.com",
     "-from:info@richard-payne.com",
     "-from:no-reply@richard-payne.com",
+    "-subject:(\"invoice to\" OR \"invoice for\")",
   ];
   if (!includeProcessed) parts.push("-label:Receipts-Processed");
   parts.push(`newer_than:${days}d`);
@@ -270,6 +275,21 @@ async function processMessage(msg: GmailFullMessage, processedLabelId: string): 
         : (att.mimeType as "image/jpeg" | "image/png" | "image/webp");
       const categoriesJson = JSON.stringify([]); // not used for category suggestion in v1
       const extracted = await extractReceipt(buffer, claudeMime, categoriesJson);
+
+      // Outgoing-invoice guard: when FA/Stripe email Richard a copy of
+      // an invoice he sent to a client, the from: filter doesn't catch
+      // it but the extracted supplier is his own company. Mark the
+      // Gmail message processed so it doesn't reappear next scan, log,
+      // and skip the receipt insert entirely — this isn't an expense.
+      if (isOwnBusiness(extracted.supplier)) {
+        result.errors.push(`Own-business invoice (supplier: ${extracted.supplier}) — skipped`);
+        // Still record the file as processed so a future SHA256 dedup
+        // pass doesn't re-import it from the camera path either.
+        try {
+          await db().from("processed_files").insert({ file_sha256: hash, receipt_id: null });
+        } catch {}
+        continue;
+      }
 
       // Insert receipt row
       const noteCombined = [userNote, extracted.notes].filter(Boolean).join("\n\n") || null;

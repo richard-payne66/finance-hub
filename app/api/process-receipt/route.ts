@@ -3,6 +3,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import { db } from "@/app/lib/db";
 import { extractReceipt } from "@/app/lib/claude-extract";
+import { isOwnBusiness } from "@/app/lib/own-business";
 import type { SupportedMimeType } from "@/app/lib/claude-extract";
 import { errorResponse } from "@/app/lib/api-helpers";
 import type { ReceiptSource } from "@/app/lib/types";
@@ -160,6 +161,22 @@ export async function POST(req: NextRequest) {
       try {
         const categoriesJson = await getCategoriesJson();
         const extracted = await extractReceipt(buffer, claudeMime, categoriesJson);
+
+        // Outgoing-invoice guard. Same logic as the email path: if the
+        // extracted supplier is Richard's own business, this isn't an
+        // expense — flip the stub row to 'rejected' so it doesn't sit
+        // in the pending queue.
+        if (isOwnBusiness(extracted.supplier)) {
+          await db()
+            .from("receipts")
+            .update({
+              status: "rejected",
+              supplier: extracted.supplier,
+              notes: "Detected as own-business invoice (not an expense).",
+            })
+            .eq("id", stub.id);
+          return;
+        }
 
         // Semantic dedupe check (same supplier + date + amount, last 7 days)
         let possibleDupe = false;
