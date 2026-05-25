@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import crypto from "crypto";
 import sharp from "sharp";
 import { db } from "@/app/lib/db";
@@ -7,13 +7,23 @@ import type { SupportedMimeType } from "@/app/lib/claude-extract";
 import { errorResponse } from "@/app/lib/api-helpers";
 import type { ReceiptSource } from "@/app/lib/types";
 
-// Claude can take 10–20s on a complex receipt; give Vercel headroom.
+// Fire-and-forget receipt capture.
+//
+// The synchronous response covers ONLY the fast bits: hash, dedup,
+// resize, storage upload, insert a "processing" stub row. Total ~1-2s,
+// so the user can close the camera the instant they see ✓.
+//
+// The expensive bit — base64-encoding the image, calling Claude,
+// updating the row with extracted fields — runs via `after()`, which
+// keeps the serverless function alive after the response is sent.
+// If Claude fails the row is left as `extraction_failed` with the
+// underlying message in extraction_error; receipts that get stuck in
+// `processing` for more than ~5 min are flagged in the UI.
 export const maxDuration = 60;
 
 const MAX_LONG_EDGE = 2576; // px — above this sharp resizes before sending to Claude
 
 // Pull categories from the kv-cached FreeAgent chart of accounts.
-// (The old freeagent_categories table was never populated.)
 type CategoriesCache = { json: string; expiresAt: number };
 let _categoriesCache: CategoriesCache | null = null;
 
@@ -52,8 +62,6 @@ export async function POST(req: NextRequest) {
 
     const originalMime = file.type;
     const bytes = await file.arrayBuffer();
-    // Explicit Buffer type avoids ArrayBuffer vs ArrayBufferLike mismatch
-    // between File.arrayBuffer() and sharp's toBuffer() return types.
     let buffer: Buffer = Buffer.from(new Uint8Array(bytes));
 
     // ── 1. Hash + dedup ───────────────────────────────────────────────────────
@@ -73,8 +81,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. Normalise to a MIME Claude accepts ─────────────────────────────────
-    // storageMime tracks what we actually end up storing (may differ from
-    // originalMime if sharp converts an oversized image to JPEG).
     let claudeMime: SupportedMimeType;
     let storageMime: string = originalMime;
 
@@ -121,73 +127,97 @@ export async function POST(req: NextRequest) {
       .upload(storageKey, buffer, { contentType: storageMime, upsert: false });
 
     if (uploadError) {
-      // Non-fatal — log and continue; the image thumb will just be missing.
       console.error("Storage upload error:", uploadError.message);
     }
 
-    // ── 4. Categories for prompt (cached 1h) ──────────────────────────────────
-    const categoriesJson = await getCategoriesJson();
-
-    // ── 5. Claude extraction ──────────────────────────────────────────────────
-    const extracted = await extractReceipt(buffer, claudeMime, categoriesJson);
-
-    // ── 6. Semantic dupe check (same supplier + date + amount, last 7 days) ───
-    let possibleDupe = false;
-    if (extracted.supplier && extracted.supply_date && extracted.gross_total) {
-      const sevenDaysAgo = new Date(
-        Date.now() - 7 * 24 * 60 * 60 * 1000
-      ).toISOString();
-      const { data: dupes } = await db()
-        .from("receipts")
-        .select("id")
-        .eq("supplier", extracted.supplier)
-        .eq("supply_date", extracted.supply_date)
-        .eq("gross_total", extracted.gross_total)
-        .gte("created_at", sevenDaysAgo)
-        .limit(1);
-      possibleDupe = (dupes?.length ?? 0) > 0;
-    }
-
-    // ── 7. Insert receipt ─────────────────────────────────────────────────────
-    const { data: receipt, error: insertError } = await db()
+    // ── 4. Insert a "processing" stub row so the receipt appears in lists ─────
+    //      immediately, and return 200 to the client.
+    const { data: stub, error: stubErr } = await db()
       .from("receipts")
       .insert({
-        status: "pending",
+        status: "processing",
         source,
         file_sha256: hash,
-        supplier: extracted.supplier,
-        description: extracted.description,
-        supply_date: extracted.supply_date,
-        currency: extracted.currency,
-        gross_total: extracted.gross_total,
-        net_total: extracted.net_total,
-        vat_total: extracted.vat_total,
-        vat_rate: extracted.vat_rate,
-        payment_method: extracted.payment_method,
-        category_url: extracted.suggested_freeagent_category_url,
-        category_name: extracted.suggested_freeagent_category_name,
-        line_items: extracted.line_items,
-        is_business_card: extracted.is_business_card,
-        model_confidence: extracted.model_confidence,
-        low_confidence_fields: extracted.low_confidence_fields,
-        extracted_json: extracted,
         receipt_image_url: uploadError ? null : storageKey,
-        notes: [userNote, extracted.notes].filter(Boolean).join("\n\n") || null,
+        notes: userNote,
       })
       .select()
       .single();
 
-    if (insertError || !receipt) {
-      throw new Error(`DB insert failed: ${insertError?.message}`);
+    if (stubErr || !stub) {
+      throw new Error(`DB insert (stub) failed: ${stubErr?.message}`);
     }
 
-    // ── 8. Record processed file (dedup guard) ────────────────────────────────
     await db().from("processed_files").insert({
       file_sha256: hash,
-      receipt_id: receipt.id,
+      receipt_id: stub.id,
     });
 
-    return NextResponse.json({ receipt, possible_dupe: possibleDupe });
+    // ── 5. Background: run Claude, update the row when done. ──────────────────
+    //      `after()` lets Vercel keep this function warm until the
+    //      background work finishes, without blocking the response.
+    after(async () => {
+      try {
+        const categoriesJson = await getCategoriesJson();
+        const extracted = await extractReceipt(buffer, claudeMime, categoriesJson);
+
+        // Semantic dedupe check (same supplier + date + amount, last 7 days)
+        let possibleDupe = false;
+        if (extracted.supplier && extracted.supply_date && extracted.gross_total) {
+          const sevenDaysAgo = new Date(
+            Date.now() - 7 * 24 * 60 * 60 * 1000
+          ).toISOString();
+          const { data: dupes } = await db()
+            .from("receipts")
+            .select("id")
+            .eq("supplier", extracted.supplier)
+            .eq("supply_date", extracted.supply_date)
+            .eq("gross_total", extracted.gross_total)
+            .neq("id", stub.id)
+            .gte("created_at", sevenDaysAgo)
+            .limit(1);
+          possibleDupe = (dupes?.length ?? 0) > 0;
+        }
+
+        await db()
+          .from("receipts")
+          .update({
+            status: "pending",
+            supplier: extracted.supplier,
+            description: extracted.description,
+            supply_date: extracted.supply_date,
+            currency: extracted.currency,
+            gross_total: extracted.gross_total,
+            net_total: extracted.net_total,
+            vat_total: extracted.vat_total,
+            vat_rate: extracted.vat_rate,
+            payment_method: extracted.payment_method,
+            category_url: extracted.suggested_freeagent_category_url,
+            category_name: extracted.suggested_freeagent_category_name,
+            line_items: extracted.line_items,
+            is_business_card: extracted.is_business_card,
+            model_confidence: extracted.model_confidence,
+            low_confidence_fields: extracted.low_confidence_fields,
+            extracted_json: extracted,
+            possible_dupe: possibleDupe,
+            notes: [userNote, extracted.notes].filter(Boolean).join("\n\n") || null,
+          })
+          .eq("id", stub.id);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Background extraction failed for receipt", stub.id, msg);
+        await db()
+          .from("receipts")
+          .update({
+            status: "extraction_failed",
+            extraction_error: msg.slice(0, 1000),
+          })
+          .eq("id", stub.id);
+      }
+    });
+
+    // Return immediately. Receipt will appear in the list as "processing".
+    return NextResponse.json({ receipt: stub, queued: true });
   } catch (err) {
     return errorResponse(err, 500, "Receipt processing failed.");
   }

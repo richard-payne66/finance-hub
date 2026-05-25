@@ -1,6 +1,12 @@
 // Shared types for Finance Hub. Mirrors the Postgres schema in db/schema.sql.
 
-export type ReceiptStatus = "pending" | "approved" | "rejected" | "failed";
+export type ReceiptStatus =
+  | "processing" // stub row inserted, Claude still extracting in background
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "extraction_failed" // background-job error; details in extraction_error
+  | "failed";
 export type ReceiptSource = "photo" | "upload" | "email";
 
 export type ReceiptLineItem = {
@@ -40,6 +46,10 @@ export type Receipt = {
   freeagent_url: string | null;
   pushed_at: string | null;
   notes: string | null;
+
+  // Async-processing fields (migration 004)
+  possible_dupe?: boolean | null;
+  extraction_error?: string | null;
 
   created_at: string;
   updated_at: string;

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/app/lib/db";
 import type { Receipt } from "@/app/lib/types";
 import CaptureWidget from "@/app/components/CaptureWidget";
@@ -187,6 +188,10 @@ function ReceiptCard({ receipt: r }: { receipt: Receipt & { thumbUrl: string | n
         )}
 
         <div className="flex gap-2 mt-3 flex-wrap">
+          <Link href={`/receipts/${r.id}`}
+            className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-all">
+            Edit
+          </Link>
           {r.status === "pending" && (<>
             <button disabled title="FreeAgent push — Phase 4"
               className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 disabled:opacity-40 disabled:cursor-default">

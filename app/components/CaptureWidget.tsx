@@ -8,7 +8,7 @@ type Phase =
   | "idle"
   | "converting"
   | "compressing"
-  | "uploading"
+  | "saving"
   | "done"
   | "dupe"
   | "error";
@@ -98,7 +98,7 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
         }
       }
 
-      setPhase("uploading");
+      setPhase("saving");
 
       // Final size check — error early with a clear message if still too big
       if (uploadFile.size > 4 * 1024 * 1024) {
@@ -152,7 +152,7 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
     e.target.value = "";
   }
 
-  const busy = phase === "converting" || phase === "compressing" || phase === "uploading";
+  const busy = phase === "converting" || phase === "compressing" || phase === "saving";
 
   return (
     <div className={compact
@@ -204,12 +204,12 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
       {phase === "compressing" && (
         <p className="text-xs text-muted/60 mt-3 animate-pulse">Shrinking image…</p>
       )}
-      {phase === "uploading" && (
-        <p className="text-xs text-muted/60 mt-3 animate-pulse">Extracting with Claude…</p>
+      {phase === "saving" && (
+        <p className="text-xs text-muted/60 mt-3 animate-pulse">Saving…</p>
       )}
       {phase === "done" && (
         <p className="text-xs text-emerald-400 font-bold uppercase tracking-widest mt-3">
-          ✓ Captured — updating queue…
+          ✓ Saved — Claude is reading it in the background. Safe to close.
         </p>
       )}
       {phase === "dupe" && (
