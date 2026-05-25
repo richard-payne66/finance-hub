@@ -32,6 +32,38 @@ export type ApproveResult = {
 type FaUserResponse = { user: { url: string } };
 type FaExpenseResponse = { expense: { url: string } };
 
+// Pull the receipt image out of Supabase storage and return it as the
+// attachment payload FA expects. Returns null if we can't get it — the
+// caller pushes the expense without an attachment in that case.
+async function buildAttachment(
+  storageKey: string | null,
+): Promise<{ file_name: string; content_type: string; data: string } | null> {
+  if (!storageKey) return null;
+  // Receipts uploaded before we added storage keys could conceivably be
+  // full URLs — we only know how to handle bucket-relative keys here.
+  if (/^https?:/.test(storageKey)) return null;
+
+  const { data: blob, error } = await db().storage.from("receipts").download(storageKey);
+  if (error || !blob) return null;
+
+  const ext = (storageKey.split(".").pop() ?? "").toLowerCase();
+  const contentType =
+    ext === "pdf"
+      ? "application/pdf"
+      : ext === "png"
+      ? "image/png"
+      : ext === "webp"
+      ? "image/webp"
+      : "image/jpeg";
+
+  const buf = Buffer.from(await blob.arrayBuffer());
+  return {
+    file_name: storageKey.split("/").pop() ?? `receipt.${ext || "jpg"}`,
+    content_type: contentType,
+    data: buf.toString("base64"),
+  };
+}
+
 let _cachedUserUrl: string | null = null;
 
 async function getUserUrl(): Promise<string> {
@@ -102,6 +134,11 @@ export async function approveReceipt(receiptId: string): Promise<ApproveResult> 
 
   try {
     const userUrl = await getUserUrl();
+    // Best-effort attachment fetch. If it fails, push the expense anyway
+    // — the financial entry is more important than the image; user can
+    // attach manually in FA if needed.
+    const attachment = await buildAttachment(r.receipt_image_url).catch(() => null);
+
     const fa = await faApiSend<FaExpenseResponse>("/expenses", "POST", {
       expense: {
         user: userUrl,
@@ -110,6 +147,7 @@ export async function approveReceipt(receiptId: string): Promise<ApproveResult> 
         dated_on: r.supply_date,
         description: r.description ?? r.supplier ?? "Receipt",
         sales_tax_status: salesTaxStatus,
+        ...(attachment ? { attachment } : {}),
       },
     });
 
