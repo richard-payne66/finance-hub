@@ -156,7 +156,12 @@ export async function apiSend<T = unknown>(
   if (!res.ok) {
     throw new Error(`FA ${method} ${path}: ${res.status} ${(await res.text()).slice(0, 500)}`);
   }
-  // 204 No Content for some DELETE responses
+  // FA returns 200 with an empty body for some operations (notably DELETE
+  // and the occasional PUT). Reading text first and only JSON.parsing if
+  // there's actually something to parse avoids "Unexpected end of JSON
+  // input" on a successful empty response.
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  if (!text.trim()) return undefined as T;
+  return JSON.parse(text) as T;
 }
