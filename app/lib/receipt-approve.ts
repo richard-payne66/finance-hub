@@ -73,7 +73,10 @@ async function getUserUrl(): Promise<string> {
   return _cachedUserUrl;
 }
 
-export async function approveReceipt(receiptId: string): Promise<ApproveResult> {
+export async function approveReceipt(
+  receiptId: string,
+  opts: { force?: boolean } = {},
+): Promise<ApproveResult> {
   const { data, error } = await db()
     .from("receipts")
     .select("*")
@@ -84,7 +87,10 @@ export async function approveReceipt(receiptId: string): Promise<ApproveResult> 
   }
   const r = data as Receipt;
 
-  if (r.status === "approved" && r.freeagent_url) {
+  // Idempotency guard. `force` bypasses it — used when re-pushing after
+  // a code fix (e.g. attaching the image, correcting VAT) or after the
+  // user deleted the FA-side expense to retry.
+  if (!opts.force && r.status === "approved" && r.freeagent_url) {
     return { ok: true, pushed: false, freeagent_url: r.freeagent_url, skipped: "Already approved + pushed" };
   }
 

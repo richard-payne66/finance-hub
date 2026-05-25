@@ -7,8 +7,12 @@ export const dynamic = "force-dynamic";
 // POST /api/receipts/[id]/approve
 // Used by the Approve button on /receipts and /receipts/[id]. Idempotent —
 // if the receipt is already approved + pushed, we don't push again.
+//
+// POST /api/receipts/[id]/approve?force=true bypasses that guard, used by
+// the "Push again to FreeAgent" button when retrying after a code fix or
+// after the user deleted the FA-side expense.
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -16,7 +20,8 @@ export async function POST(
     if (!/^[0-9a-f-]{20,40}$/i.test(id)) {
       return NextResponse.json({ error: "Bad receipt id." }, { status: 400 });
     }
-    const result = await approveReceipt(id);
+    const force = new URL(req.url).searchParams.get("force") === "true";
+    const result = await approveReceipt(id, { force });
     return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   } catch (err) {
     return errorResponse(err, 500, "Approve failed.");

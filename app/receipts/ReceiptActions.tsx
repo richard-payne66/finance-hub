@@ -61,7 +61,29 @@ export default function ReceiptActions({
     }
   }
 
+  async function repush() {
+    if (!confirm("Push this receipt to FreeAgent again? Use this only if you've deleted the FA-side expense or want to refresh it with the latest code.")) return;
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/receipts/${id}/approve?force=true`, { method: "POST" });
+      const j = await res.json();
+      if (!res.ok || !j.ok) {
+        setErr(j.reason ?? j.error ?? `HTTP ${res.status}`);
+      } else {
+        setMsg(j.pushed ? "✓ Re-pushed to FreeAgent" : j.skipped ?? "✓ Done");
+        router.refresh();
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const isPending = status === "pending";
+  const isApproved = status === "approved";
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -82,6 +104,15 @@ export default function ReceiptActions({
             Reject
           </button>
         </>
+      )}
+      {isApproved && (
+        <button
+          onClick={repush}
+          disabled={busy}
+          className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-default"
+        >
+          {busy ? "…" : "Push again to FA"}
+        </button>
       )}
       {msg && (
         <span className="text-[10px] text-primary font-bold uppercase tracking-widest">
