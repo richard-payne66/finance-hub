@@ -118,19 +118,43 @@ export async function approveReceipt(receiptId: string): Promise<ApproveResult> 
     };
   }
 
-  // Push as an out-of-pocket Expense.
-  // sales_tax_status:
-  //   - "TAXABLE"   → has VAT; FA computes from category + amount
-  //   - "EXEMPT"    → 0% / Exempt / Out of Scope
-  //   - "OUT_OF_SCOPE" — for non-UK
-  // We default to TAXABLE unless vat_rate explicitly says zero/exempt.
-  const vatRate = (r.vat_rate ?? "").toLowerCase();
-  const salesTaxStatus =
-    vatRate.includes("exempt") || vatRate.includes("out of scope")
-      ? "EXEMPT"
-      : vatRate === "0%"
-      ? "EXEMPT"
-      : "TAXABLE";
+  // Map our extracted VAT data onto the fields FA's /v2/expenses expects.
+  //
+  //   sales_tax_status — TAXABLE | EXEMPT | OUT_OF_SCOPE
+  //   sales_tax_rate   — numeric, required when status=TAXABLE
+  //   manual_sales_tax_amount — exact VAT figure from the receipt; sent
+  //     whenever Claude pulled it out so the FA line matches what's on
+  //     the paper. Without this, FA computes VAT from the category's
+  //     default 20% which mis-bills 5%/0%/mixed-rate receipts.
+  const vatRateStr = (r.vat_rate ?? "").toLowerCase().trim();
+  const rateMatch = vatRateStr.match(/^(\d+(?:\.\d+)?)\s*%$/);
+  const explicitRate = rateMatch ? Number.parseFloat(rateMatch[1]) : null;
+
+  let salesTaxStatus: "TAXABLE" | "EXEMPT" | "OUT_OF_SCOPE" = "TAXABLE";
+  let salesTaxRate: number | null = explicitRate;
+
+  if (vatRateStr === "exempt") {
+    salesTaxStatus = "EXEMPT";
+    salesTaxRate = null;
+  } else if (vatRateStr === "out of scope") {
+    salesTaxStatus = "OUT_OF_SCOPE";
+    salesTaxRate = null;
+  } else if (explicitRate === 0) {
+    // 0%-rated (food etc) is technically TAXABLE at 0%, not EXEMPT.
+    salesTaxStatus = "TAXABLE";
+    salesTaxRate = 0;
+  } else if (explicitRate == null && (r.vat_total ?? 0) === 0) {
+    // Claude couldn't determine the rate AND no VAT amount → safest as exempt
+    // (FA won't try to imply 20% from an unknown category default).
+    salesTaxStatus = "EXEMPT";
+  } else if (explicitRate == null && r.vat_total != null && r.gross_total != null) {
+    // We have a VAT amount but no explicit rate string — back it out from
+    // the numbers so FA's required sales_tax_rate field can be sent.
+    const netImplied = r.gross_total - r.vat_total;
+    if (netImplied > 0) {
+      salesTaxRate = Math.round((r.vat_total / netImplied) * 1000) / 10; // 1dp
+    }
+  }
 
   try {
     const userUrl = await getUserUrl();
@@ -147,6 +171,10 @@ export async function approveReceipt(receiptId: string): Promise<ApproveResult> 
         dated_on: r.supply_date,
         description: r.description ?? r.supplier ?? "Receipt",
         sales_tax_status: salesTaxStatus,
+        ...(salesTaxRate != null ? { sales_tax_rate: salesTaxRate } : {}),
+        ...(r.vat_total != null
+          ? { manual_sales_tax_amount: r.vat_total }
+          : {}),
         ...(attachment ? { attachment } : {}),
       },
     });
