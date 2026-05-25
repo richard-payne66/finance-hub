@@ -1,38 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Receipt } from "@/app/lib/types";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type EditableState = {
   supplier: string;
   description: string;
   supply_date: string;
-  currency: string;
-  gross_total: string; // strings while editing, parsed on save
-  net_total: string;
-  vat_total: string;
+  gross_total: string;
   vat_rate: string;
   payment_method: "card" | "cash" | "bank_transfer" | "direct_debit" | "";
-  category_name: string;
-  is_business_card: "true" | "false" | "";
+  category_url: string;
   notes: string;
 };
+
+type Cat = {
+  url: string;
+  description: string;
+  group?: string;
+  allowable_for_tax?: boolean;
+  usage_count: number;
+};
+
+// Common UK VAT rates — covers ~all cases. "Auto" lets the system stay
+// with whatever Claude inferred.
+const VAT_RATES = ["Auto", "20%", "5%", "0%", "Exempt", "Out of Scope"] as const;
 
 function toState(r: Receipt): EditableState {
   return {
     supplier: r.supplier ?? "",
     description: r.description ?? "",
     supply_date: r.supply_date ?? "",
-    currency: r.currency ?? "GBP",
     gross_total: r.gross_total != null ? String(r.gross_total) : "",
-    net_total: r.net_total != null ? String(r.net_total) : "",
-    vat_total: r.vat_total != null ? String(r.vat_total) : "",
     vat_rate: r.vat_rate ?? "",
     payment_method: (r.payment_method ?? "") as EditableState["payment_method"],
-    category_name: r.category_name ?? "",
-    is_business_card:
-      r.is_business_card === true ? "true" : r.is_business_card === false ? "false" : "",
+    category_url: r.category_url ?? "",
     notes: r.notes ?? "",
   };
 }
@@ -50,13 +55,48 @@ export default function ReceiptEditor({ receipt }: { receipt: Receipt }) {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  function field<K extends keyof EditableState>(key: K) {
+  const [categories, setCategories] = useState<Cat[]>([]);
+  const [showAllCats, setShowAllCats] = useState(false);
+
+  // Fetch categories once on mount.
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((j) => setCategories((j.categories as Cat[]) ?? []))
+      .catch(() => setCategories([]));
+  }, []);
+
+  // Split into frequently-used vs the rest, mirror /review picker.
+  const { frequent, restByGroup } = useMemo(() => {
+    const freq: Cat[] = [];
+    const rest: Cat[] = [];
+    for (const c of categories) {
+      if (c.usage_count > 0) freq.push(c);
+      else rest.push(c);
+    }
+    freq.sort((a, b) => b.usage_count - a.usage_count);
+    const m = new Map<string, Cat[]>();
+    for (const c of rest) {
+      const g = c.group ?? "Other";
+      if (!m.has(g)) m.set(g, []);
+      m.get(g)!.push(c);
+    }
     return {
-      value: state[key],
-      onChange: (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-      ) => setState((s) => ({ ...s, [key]: e.target.value as EditableState[K] })),
+      frequent: freq,
+      restByGroup: Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b)),
     };
+  }, [categories]);
+
+  // If the currently-saved category isn't in the frequently-used list,
+  // make sure we expand the dropdown to include it.
+  const currentCatInFrequent = useMemo(
+    () => frequent.some((c) => c.url === state.category_url),
+    [frequent, state.category_url],
+  );
+  const effectiveShowAll = showAllCats || (state.category_url !== "" && !currentCatInFrequent);
+
+  function setField<K extends keyof EditableState>(key: K, value: EditableState[K]) {
+    setState((s) => ({ ...s, [key]: value }));
   }
 
   async function save() {
@@ -64,23 +104,17 @@ export default function ReceiptEditor({ receipt }: { receipt: Receipt }) {
     setSaved(false);
     setErr(null);
     try {
+      // Find category name for the picked URL so it stays denormalised.
+      const cat = categories.find((c) => c.url === state.category_url);
       const body = {
         supplier: state.supplier.trim() || null,
         description: state.description.trim() || null,
         supply_date: state.supply_date || null,
-        currency: state.currency.trim() || null,
         gross_total: toNumber(state.gross_total),
-        net_total: toNumber(state.net_total),
-        vat_total: toNumber(state.vat_total),
         vat_rate: state.vat_rate.trim() || null,
         payment_method: state.payment_method || null,
-        category_name: state.category_name.trim() || null,
-        is_business_card:
-          state.is_business_card === "true"
-            ? true
-            : state.is_business_card === "false"
-            ? false
-            : null,
+        category_url: state.category_url || null,
+        category_name: cat?.description ?? null,
         notes: state.notes.trim() || null,
       };
       const res = await fetch(`/api/receipts/${receipt.id}`, {
@@ -123,66 +157,68 @@ export default function ReceiptEditor({ receipt }: { receipt: Receipt }) {
 
   return (
     <div className="space-y-4">
-      {/* Two-column grid for short fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Supplier</label>
-          <input className={inputCls} {...field("supplier")} placeholder="e.g. Tesco" />
+          <input
+            className={inputCls}
+            value={state.supplier}
+            onChange={(e) => setField("supplier", e.target.value)}
+            placeholder="e.g. Tesco"
+          />
         </div>
         <div>
           <label className={labelCls}>Date (YYYY-MM-DD)</label>
-          <input className={inputCls} {...field("supply_date")} placeholder="2026-05-25" />
+          <input
+            className={inputCls}
+            value={state.supply_date}
+            onChange={(e) => setField("supply_date", e.target.value)}
+            placeholder="2026-05-25"
+          />
         </div>
         <div className="sm:col-span-2">
           <label className={labelCls}>What was this for?</label>
           <input
             className={inputCls}
-            {...field("description")}
+            value={state.description}
+            onChange={(e) => setField("description", e.target.value)}
             placeholder="Concise expense label"
           />
         </div>
         <div>
-          <label className={labelCls}>Gross total</label>
+          <label className={labelCls}>Total</label>
           <input
             className={inputCls}
-            {...field("gross_total")}
-            inputMode="decimal"
-            placeholder="0.00"
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Currency</label>
-          <input className={inputCls} {...field("currency")} placeholder="GBP" />
-        </div>
-        <div>
-          <label className={labelCls}>Net total</label>
-          <input
-            className={inputCls}
-            {...field("net_total")}
-            inputMode="decimal"
-            placeholder="0.00"
-          />
-        </div>
-        <div>
-          <label className={labelCls}>VAT total</label>
-          <input
-            className={inputCls}
-            {...field("vat_total")}
+            value={state.gross_total}
+            onChange={(e) => setField("gross_total", e.target.value)}
             inputMode="decimal"
             placeholder="0.00"
           />
         </div>
         <div>
           <label className={labelCls}>VAT rate</label>
-          <input
+          <select
             className={inputCls}
-            {...field("vat_rate")}
-            placeholder="20%, 0%, Exempt…"
-          />
+            value={state.vat_rate}
+            onChange={(e) => setField("vat_rate", e.target.value)}
+          >
+            <option value="">—</option>
+            {VAT_RATES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
-          <label className={labelCls}>Payment method</label>
-          <select className={inputCls} {...field("payment_method")}>
+          <label className={labelCls}>Paid by</label>
+          <select
+            className={inputCls}
+            value={state.payment_method}
+            onChange={(e) =>
+              setField("payment_method", e.target.value as EditableState["payment_method"])
+            }
+          >
             <option value="">—</option>
             <option value="card">Card</option>
             <option value="cash">Cash</option>
@@ -190,20 +226,48 @@ export default function ReceiptEditor({ receipt }: { receipt: Receipt }) {
             <option value="direct_debit">Direct debit</option>
           </select>
         </div>
-        <div className="sm:col-span-2">
-          <label className={labelCls}>FreeAgent category</label>
-          <input
+        <div className="sm:col-span-1">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className={labelCls + " mb-0"}>FreeAgent category</label>
+            {frequent.length > 0 && categories.length > frequent.length && (
+              <button
+                type="button"
+                onClick={() => setShowAllCats((v) => !v)}
+                className="text-[9px] uppercase tracking-widest font-bold text-muted/50 hover:text-foreground transition-colors"
+              >
+                {effectiveShowAll
+                  ? `Show frequent (${frequent.length}) ▴`
+                  : `Show all (${categories.length}) ▾`}
+              </button>
+            )}
+          </div>
+          <select
             className={inputCls}
-            {...field("category_name")}
-            placeholder="e.g. Travel"
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Paid with business card?</label>
-          <select className={inputCls} {...field("is_business_card")}>
-            <option value="">—</option>
-            <option value="true">Yes — business card</option>
-            <option value="false">No — personal</option>
+            value={state.category_url}
+            onChange={(e) => setField("category_url", e.target.value)}
+          >
+            <option value="">— choose —</option>
+            {frequent.length > 0 && (
+              <optgroup label={`★ Frequently used (${frequent.length})`}>
+                {frequent.map((c) => (
+                  <option key={c.url} value={c.url}>
+                    {c.description}
+                    {c.usage_count ? ` · used ${c.usage_count}×` : ""}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {(effectiveShowAll || frequent.length === 0) &&
+              restByGroup.map(([group, cats]) => (
+                <optgroup key={group} label={group}>
+                  {cats.map((c) => (
+                    <option key={c.url} value={c.url}>
+                      {c.description}
+                      {!c.allowable_for_tax ? " (not tax-deductible)" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
           </select>
         </div>
       </div>
@@ -213,14 +277,15 @@ export default function ReceiptEditor({ receipt }: { receipt: Receipt }) {
         <textarea
           className={inputCls + " resize-none"}
           rows={3}
-          {...field("notes")}
+          value={state.notes}
+          onChange={(e) => setField("notes", e.target.value)}
           placeholder="Anything else you want to record"
         />
       </div>
 
       {err && (
         <div className="px-3 py-2 bg-red-500/8 border border-red-500/20 rounded-lg">
-          <p className="text-[12px] text-red-400">{err}</p>
+          <p className="text-[12px] text-red-400 break-words">{err}</p>
         </div>
       )}
 
