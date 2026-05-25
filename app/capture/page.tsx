@@ -3,8 +3,9 @@ import { db } from "@/app/lib/db";
 import type { Receipt } from "@/app/lib/types";
 import Link from "next/link";
 
-// Minimal mobile-first capture view. Just the camera + note field +
-// last few receipts as a confirmation strip.
+// Stripped-down mobile entry view. No nav, no page title, no footer —
+// just the camera button + a small confirmation strip. Designed to be
+// pinned to the iPhone home screen and used like a single-purpose app.
 export const revalidate = 30;
 
 async function recentReceipts(): Promise<Receipt[]> {
@@ -37,38 +38,29 @@ export default async function CapturePage() {
   const recents = await recentReceipts();
 
   return (
-    <main className="min-h-screen px-4 py-6 max-w-md mx-auto">
-      <header className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-black tracking-tight text-foreground">CAPTURE</h1>
-        <Link
-          href="/"
-          className="text-[9px] font-bold uppercase tracking-widest text-muted/50 hover:text-foreground transition-colors"
-        >
-          Home
-        </Link>
-      </header>
-      <p className="text-[11px] text-muted/60 mb-5 leading-relaxed">
-        Snap a <strong className="text-foreground/80">receipt or invoice</strong>. Save it, close the phone — Claude reads it in the background.
-      </p>
-
+    <main className="min-h-screen px-4 pt-10 pb-6 max-w-md mx-auto">
       <CaptureWidget compact />
 
       {recents.length > 0 && (
         <section className="mt-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[9px] text-muted uppercase tracking-widest font-bold">
+            <p className="text-[9px] text-muted/40 uppercase tracking-widest font-bold">
               Last captured
             </p>
             <Link
               href="/receipts"
-              className="text-[9px] font-bold uppercase tracking-widest text-muted/50 hover:text-foreground transition-colors"
+              className="text-[9px] font-bold uppercase tracking-widest text-muted/40 hover:text-foreground transition-colors"
             >
               All ↗
             </Link>
           </div>
           <div className="bg-surface border border-white/8 rounded-xl divide-y divide-white/5">
             {recents.map((r) => (
-              <div key={r.id} className="flex items-center justify-between px-4 py-3 gap-3">
+              <Link
+                key={r.id}
+                href={`/receipts/${r.id}`}
+                className="flex items-center justify-between px-4 py-3 gap-3 hover:bg-white/5 transition-colors"
+              >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-foreground truncate">
                     {r.supplier ?? <span className="text-muted/40 italic">Processing…</span>}
@@ -80,16 +72,11 @@ export default async function CapturePage() {
                 <p className="text-sm font-bold font-mono shrink-0">
                   {fmt(r.gross_total, r.currency)}
                 </p>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
       )}
-
-      <p className="text-[9px] text-muted/30 mt-8 text-center leading-relaxed">
-        📸 Camera works on mobile<br />
-        🔁 Forward emails to receipts@richard-payne.com (coming soon)
-      </p>
     </main>
   );
 }

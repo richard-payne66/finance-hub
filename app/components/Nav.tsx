@@ -19,6 +19,9 @@ export default function Nav() {
   if (path === "/login") return null;
   // Also hide on the share page (it's a public view for the accountant)
   if (path.startsWith("/share/")) return null;
+  // And on /capture — that's the receipts-only home-screen app view,
+  // every extra pixel is friction.
+  if (path === "/capture") return null;
 
   return (
     <nav className="flex gap-1 flex-wrap px-4 sm:px-8 pt-5 pb-2 max-w-6xl mx-auto">
