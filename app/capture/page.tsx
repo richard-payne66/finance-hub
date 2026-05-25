@@ -38,7 +38,7 @@ export default async function CapturePage() {
 
   return (
     <main className="min-h-screen px-4 py-6 max-w-md mx-auto">
-      <header className="flex items-center justify-between mb-6">
+      <header className="flex items-center justify-between mb-1">
         <h1 className="text-xl font-black tracking-tight text-foreground">CAPTURE</h1>
         <Link
           href="/"
@@ -47,6 +47,9 @@ export default async function CapturePage() {
           Home
         </Link>
       </header>
+      <p className="text-[11px] text-muted/60 mb-5 leading-relaxed">
+        Snap a <strong className="text-foreground/80">receipt or invoice</strong>. Save it, close the phone — Claude reads it in the background.
+      </p>
 
       <CaptureWidget compact />
 
