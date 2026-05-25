@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, DM_Sans } from "next/font/google";
 import Nav from "./components/Nav";
+import ButlerChat from "./components/ButlerChat";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -43,6 +44,7 @@ export default function RootLayout({
       <body className={`${spaceGrotesk.variable} ${dmSans.variable} antialiased`}>
         <Nav />
         {children}
+        <ButlerChat />
       </body>
     </html>
   );
