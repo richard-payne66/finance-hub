@@ -49,7 +49,7 @@ export default function DataHealthPanel() {
   return (
     <div className={`border rounded-2xl p-5 ${
       healthy
-        ? "bg-surface border-emerald-500/20"
+        ? "bg-surface border-primary/20"
         : "bg-surface border-white/10"
     }`}>
       <button
@@ -60,7 +60,7 @@ export default function DataHealthPanel() {
           <span className="text-xl">{healthy ? "✓" : "⚙️"}</span>
           <div className="min-w-0">
             <p className={`text-[9px] uppercase tracking-widest font-bold ${
-              healthy ? "text-emerald-400" : "text-muted"
+              healthy ? "text-primary" : "text-muted"
             }`}>
               Data accuracy
             </p>

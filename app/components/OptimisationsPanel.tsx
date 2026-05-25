@@ -40,7 +40,7 @@ export default function OptimisationsPanel() {
 
   if (!data) {
     return (
-      <div className="bg-gradient-to-br from-emerald-500/5 to-surface border border-white/8 rounded-2xl p-6 animate-pulse">
+      <div className="bg-gradient-to-br from-primary/5 to-surface border border-white/8 rounded-2xl p-6 animate-pulse">
         <div className="h-3 w-32 bg-white/5 rounded mb-3" />
         <div className="h-10 w-64 bg-white/5 rounded" />
       </div>
@@ -51,10 +51,10 @@ export default function OptimisationsPanel() {
   const doneTips = data.tips.filter((t) => t.status === "done");
 
   return (
-    <div className="bg-gradient-to-br from-emerald-500/5 to-surface border border-emerald-500/20 rounded-2xl p-5 sm:p-6">
+    <div className="bg-gradient-to-br from-primary/5 to-surface border border-primary/20 rounded-2xl p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-bold">
+          <p className="text-[9px] text-primary uppercase tracking-widest font-bold">
             💸 Ways to save money
           </p>
           <p className="text-[10px] text-muted/50 mt-0.5">
@@ -65,7 +65,7 @@ export default function OptimisationsPanel() {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-2xl sm:text-3xl font-black tracking-tight text-emerald-300 leading-none">
+          <p className="text-2xl sm:text-3xl font-black tracking-tight text-primary leading-none">
             ~{GBP.format(data.total_potential_saving)}
           </p>
           <p className="text-[9px] text-muted/50 mt-0.5">/yr available</p>
@@ -91,7 +91,7 @@ export default function OptimisationsPanel() {
         <div className="mt-4 pt-3 border-t border-white/5">
           <button
             onClick={() => setShowDone((v) => !v)}
-            className="text-[10px] text-emerald-400/70 hover:text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-2"
+            className="text-[10px] text-primary/70 hover:text-primary uppercase tracking-widest font-bold flex items-center gap-2"
           >
             <span>✓ Done ({doneTips.length})</span>
             <span className="font-mono">{showDone ? "▴" : "▾"}</span>
@@ -101,7 +101,7 @@ export default function OptimisationsPanel() {
               {doneTips.map((tip) => (
                 <div key={tip.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white/3 text-xs">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-emerald-400 shrink-0">✓</span>
+                    <span className="text-primary shrink-0">✓</span>
                     <span className="text-foreground/80 truncate">{tip.title}</span>
                   </div>
                   <button
@@ -133,7 +133,7 @@ function CompactTipRow({
   onToggleExpand: () => void; onDone: (v: boolean) => void;
 }) {
   const isManual = !tip.id.startsWith("dd_") && tip.id !== "categorise_queue";
-  const diffColor = tip.difficulty === "easy" ? "text-emerald-400/70"
+  const diffColor = tip.difficulty === "easy" ? "text-primary/70"
                   : tip.difficulty === "medium" ? "text-amber-400/70"
                   : "text-rose-400/70";
 
@@ -153,7 +153,7 @@ function CompactTipRow({
           <span className="text-sm text-foreground truncate">{tip.title}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-sm font-bold text-emerald-400 font-mono">
+          <span className="text-sm font-bold text-primary font-mono">
             +{GBP.format(tip.estimated_saving)}
           </span>
           <span className="text-[10px] text-muted/40 font-mono">{expanded ? "▴" : "▾"}</span>
@@ -187,7 +187,7 @@ function CompactTipRow({
               <button
                 onClick={() => onDone(true)}
                 disabled={busy}
-                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-emerald-500/40 hover:text-emerald-400 transition-colors disabled:opacity-40 ml-auto"
+                className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-40 ml-auto"
               >
                 ✓ I&apos;m doing this
               </button>

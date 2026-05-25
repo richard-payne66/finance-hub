@@ -26,7 +26,32 @@ export const maxDuration = 300;
 //
 // Dedupe by Gmail Message-ID stored in receipts.source_ref.
 
-const QUERY = '(to:receipts@richard-payne.com OR label:RECEIPTS) -label:Receipts-Processed has:attachment newer_than:30d';
+// Broader inbox scan.
+//
+// Catches anything that looks like a *purchase made by the company* —
+// not just emails forwarded to receipts@. Subject must hint at receipts,
+// invoices, orders, purchases, payments; OR be on the existing receipts@
+// / RECEIPTS-label channels.
+//
+// Outgoing invoices Richard sent to clients are excluded with `-from:`
+// rules covering both the @richard-payne.com domain and the personal
+// info@ alias — both end up in the inbox as "sent" copies otherwise.
+//
+// `has:attachment` keeps us out of order-confirmation noise that doesn't
+// include the actual receipt PDF.
+const QUERY = [
+  "(",
+  "  to:receipts@richard-payne.com",
+  "  OR label:RECEIPTS",
+  "  OR subject:(receipt OR invoice OR \"order confirmation\" OR \"payment confirmation\" OR \"your purchase\")",
+  ")",
+  "has:attachment",
+  "-from:richard-payne.com",
+  "-from:info@richard-payne.com",
+  "-from:no-reply@richard-payne.com",
+  "-label:Receipts-Processed",
+  "newer_than:30d",
+].join(" ");
 const PROCESSED_LABEL_NAME = "Receipts-Processed";
 
 // HEIC/HEIF excluded — Claude needs jpeg/png/webp/pdf. Email-forwarded

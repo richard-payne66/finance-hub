@@ -33,7 +33,7 @@ const KIND_COLOR: Record<HmrcLine["kind"], string> = {
   "VAT":              "text-blue-400 border-blue-500/30 bg-blue-500/10",
   "Corporation Tax":  "text-purple-400 border-purple-500/30 bg-purple-500/10",
   "Self Assessment":  "text-amber-400 border-amber-500/30 bg-amber-500/10",
-  "PAYE":             "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+  "PAYE":             "text-primary border-primary/30 bg-primary/10",
   "Other":            "text-muted border-white/10 bg-white/5",
 };
 
@@ -105,7 +105,7 @@ export default function HMRCPanel() {
       {/* Headline number */}
       {data.owed_now_total === 0 && upcomingLines.length === 0 ? (
         <div>
-          <p className="text-4xl font-black text-emerald-400">£0</p>
+          <p className="text-4xl font-black text-primary">£0</p>
           <p className="text-xs text-muted/50 mt-2">Nothing owed right now — nice 🎉</p>
         </div>
       ) : (

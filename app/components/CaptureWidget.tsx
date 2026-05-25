@@ -208,7 +208,7 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
         <p className="text-xs text-muted/60 mt-3 animate-pulse">Saving…</p>
       )}
       {phase === "done" && (
-        <p className="text-xs text-emerald-400 font-bold uppercase tracking-widest mt-3">
+        <p className="text-xs text-primary font-bold uppercase tracking-widest mt-3">
           ✓ Saved — Claude is reading it in the background. Safe to close.
         </p>
       )}

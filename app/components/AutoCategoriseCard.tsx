@@ -80,7 +80,7 @@ export default function AutoCategoriseCard() {
       </div>
 
       {runResult && (
-        <p className="text-[10px] text-emerald-400 mb-3">{runResult}</p>
+        <p className="text-[10px] text-primary mb-3">{runResult}</p>
       )}
 
       <div className="grid grid-cols-3 gap-3 mb-4">
@@ -121,7 +121,7 @@ export default function AutoCategoriseCard() {
 }
 
 function Stat({ label, value, accent, sublabel }: { label: string; value: number; accent: "emerald" | "amber" | "muted"; sublabel?: string }) {
-  const color = accent === "emerald" ? "text-emerald-400"
+  const color = accent === "emerald" ? "text-primary"
               : accent === "amber"   ? "text-amber-400"
               :                        "text-muted";
   return (
@@ -134,7 +134,7 @@ function Stat({ label, value, accent, sublabel }: { label: string; value: number
 }
 
 function ClickableStat({ label, value, accent, sublabel, href }: { label: string; value: number; accent: "emerald" | "amber" | "muted"; sublabel?: string; href: string }) {
-  const color = accent === "emerald" ? "text-emerald-400"
+  const color = accent === "emerald" ? "text-primary"
               : accent === "amber"   ? "text-amber-400"
               :                        "text-muted";
   return (
@@ -149,7 +149,7 @@ function ClickableStat({ label, value, accent, sublabel, href }: { label: string
 function DecisionRow({ entry: e }: { entry: AuditEntry }) {
   const isOut = e.txn_amount < 0;
   const actionColor =
-    e.action === "auto_applied"      ? "text-emerald-400" :
+    e.action === "auto_applied"      ? "text-primary" :
     e.action === "queued_for_review" ? "text-amber-400" :
     e.action === "skipped_personal"  ? "text-muted/50" :
                                        "text-rose-400";
@@ -177,7 +177,7 @@ function DecisionRow({ entry: e }: { entry: AuditEntry }) {
           <span className="font-mono">{Math.round(e.confidence * 100)}%</span>
         </div>
         {e.tax_note && (
-          <p className="text-[10px] text-emerald-400/70 mt-1 italic">{e.tax_note}</p>
+          <p className="text-[10px] text-primary/70 mt-1 italic">{e.tax_note}</p>
         )}
         {e.error && (
           <p className="text-[10px] text-rose-400 mt-1">{e.error}</p>

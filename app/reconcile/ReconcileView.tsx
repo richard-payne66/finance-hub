@@ -160,7 +160,7 @@ function Banner({ kind, text }: { kind: "warn"; text: React.ReactNode }) {
 function Headline({ report }: { report: ReconcileReport }) {
   const total = report.totals.receipts;
   const matchedPct = total > 0 ? Math.round((report.totals.receipts_matched_to_bank / total) * 100) : 100;
-  const colour = matchedPct >= 95 ? "text-emerald-400" : matchedPct >= 70 ? "text-amber-400" : "text-rose-400";
+  const colour = matchedPct >= 95 ? "text-primary" : matchedPct >= 70 ? "text-amber-400" : "text-rose-400";
 
   return (
     <div className="bg-gradient-to-br from-surface to-surface/50 border border-white/8 rounded-2xl p-6 mb-6">
@@ -205,7 +205,7 @@ function Section({
   return (
     <section className={`mb-5 rounded-2xl border p-5 ${
       muted ? "bg-surface border-white/5" :
-      isEmpty ? "bg-surface border-emerald-500/20" :
+      isEmpty ? "bg-surface border-primary/20" :
                 "bg-surface border-white/8"
     }`}>
       <div className="flex items-baseline justify-between mb-1">
@@ -232,7 +232,7 @@ function Row({ date, amount, description, ctaLabel, ctaHref }: {
         <p className="text-[10px] text-muted/40 mt-0.5">{date ? fmtDate(date) : "no date"}</p>
       </div>
       {amount !== null && (
-        <p className={`text-xs font-mono font-bold shrink-0 ${amount < 0 ? "text-foreground" : "text-emerald-400"}`}>
+        <p className={`text-xs font-mono font-bold shrink-0 ${amount < 0 ? "text-foreground" : "text-primary"}`}>
           {GBP.format(amount)}
         </p>
       )}

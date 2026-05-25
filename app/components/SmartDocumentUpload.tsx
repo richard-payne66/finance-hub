@@ -81,8 +81,8 @@ export default function SmartDocumentUpload() {
       </button>
 
       {phase === "done" && lastResult && (
-        <div className="mt-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-          <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mb-1">
+        <div className="mt-3 bg-primary/5 border border-primary/20 rounded-lg p-3">
+          <p className="text-[10px] text-primary font-bold uppercase tracking-widest mb-1">
             ✓ Filed as
           </p>
           <p className="text-sm text-foreground">{lastResult.classification.title}</p>

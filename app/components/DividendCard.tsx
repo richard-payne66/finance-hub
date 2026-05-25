@@ -32,7 +32,7 @@ export default function DividendCard() {
     );
   }
 
-  const colour = data.status === "comfortable" ? "text-emerald-400"
+  const colour = data.status === "comfortable" ? "text-primary"
                : data.status === "tight"       ? "text-amber-300"
                :                                 "text-rose-400";
 
@@ -123,8 +123,8 @@ export default function DividendCard() {
             </p>
           </div>
 
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-            <p className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold mb-1">🎯 Bonus optimisation</p>
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-1">🎯 Bonus optimisation</p>
             <p className="text-[11px] text-muted/70">
               <strong>Employer pension contribution</strong> from the company is deductible (cuts corp tax) AND protects you from the £100k personal allowance taper. Up to £60k/yr annual allowance.
             </p>

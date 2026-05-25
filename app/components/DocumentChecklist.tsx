@@ -163,7 +163,7 @@ export default function DocumentChecklist() {
           Documents
         </p>
         <div className="flex items-center gap-3">
-          <span className="text-[9px] text-emerald-400 font-mono font-bold">{presentCount} have</span>
+          <span className="text-[9px] text-primary font-mono font-bold">{presentCount} have</span>
           <span className="text-[9px] text-muted/30 font-mono">·</span>
           <span className="text-[9px] text-amber-400/80 font-mono font-bold">{total - presentCount} missing</span>
         </div>
@@ -183,7 +183,7 @@ export default function DocumentChecklist() {
                   {group.title}
                 </span>
                 <span className={`text-[9px] font-bold font-mono ${
-                  allPresent  ? "text-emerald-400" :
+                  allPresent  ? "text-primary" :
                   nonePresent ? "text-amber-400/70" :
                                 "text-amber-300/60"
                 }`}>
@@ -207,7 +207,7 @@ export default function DocumentChecklist() {
                       {/* Status indicator */}
                       <div className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center text-[8px] font-bold transition-all ${
                         present
-                          ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+                          ? "bg-primary/20 border-primary/40 text-primary"
                           : "border-amber-500/30 bg-amber-500/5 text-amber-400/60"
                       }`}>
                         {present ? "✓" : "–"}
@@ -239,7 +239,7 @@ export default function DocumentChecklist() {
                         {present && primaryDoc && (
                           matchedDocs.length > 1 ? (
                             // Multiple files — link to category view
-                            <span className="text-[9px] text-emerald-400/60 font-bold uppercase tracking-widest">
+                            <span className="text-[9px] text-primary/60 font-bold uppercase tracking-widest">
                               {matchedDocs.length} ↓
                             </span>
                           ) : (

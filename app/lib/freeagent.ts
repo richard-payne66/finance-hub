@@ -133,3 +133,30 @@ export async function api<T = unknown>(path: string): Promise<T> {
   if (!res.ok) throw new Error(`FA API ${path}: ${res.status} ${await res.text()}`);
   return res.json() as Promise<T>;
 }
+
+// Non-GET request — used to POST/PUT/DELETE against FA's API. Same
+// auth + base URL handling as api() above, but lets us send JSON.
+export async function apiSend<T = unknown>(
+  path: string,
+  method: "POST" | "PUT" | "DELETE",
+  body?: unknown,
+): Promise<T> {
+  const token = await getValidToken();
+  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "Finance Hub / Richard Payne LTD",
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    throw new Error(`FA ${method} ${path}: ${res.status} ${(await res.text()).slice(0, 500)}`);
+  }
+  // 204 No Content for some DELETE responses
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}

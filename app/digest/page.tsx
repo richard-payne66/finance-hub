@@ -46,7 +46,7 @@ export default async function DigestPage({ searchParams }: { searchParams: Promi
 
       {/* The one-liner */}
       <section className="bg-surface border border-white/8 rounded-2xl p-6 sm:p-8 mb-6">
-        <p className={`text-2xl sm:text-3xl font-bold leading-snug ${data.net >= 0 ? "text-emerald-300" : "text-amber-300"}`}>
+        <p className={`text-2xl sm:text-3xl font-bold leading-snug ${data.net >= 0 ? "text-primary" : "text-amber-300"}`}>
           {data.one_liner}
         </p>
       </section>
@@ -79,14 +79,14 @@ export default async function DigestPage({ searchParams }: { searchParams: Promi
 
       {/* What went well */}
       {data.things_going_well.length > 0 && (
-        <section className="bg-surface border border-emerald-500/20 rounded-2xl p-6 mb-6">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold mb-3">
+        <section className="bg-surface border border-primary/20 rounded-2xl p-6 mb-6">
+          <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-3">
             What went well
           </p>
           <ul className="flex flex-col gap-2">
             {data.things_going_well.map((t, i) => (
               <li key={i} className="text-sm text-muted/80 flex items-start gap-2">
-                <span className="text-emerald-400 shrink-0">✓</span>
+                <span className="text-primary shrink-0">✓</span>
                 <span>{t}</span>
               </li>
             ))}
@@ -126,7 +126,7 @@ export default async function DigestPage({ searchParams }: { searchParams: Promi
 }
 
 function Stat({ label, value, color }: { label: string; value: string; color: "emerald" | "amber" | "muted" }) {
-  const cls = color === "emerald" ? "text-emerald-400"
+  const cls = color === "emerald" ? "text-primary"
             : color === "amber"   ? "text-amber-300"
             :                       "text-foreground";
   return (

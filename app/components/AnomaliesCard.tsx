@@ -17,8 +17,8 @@ export default function AnomaliesCard() {
   // Calm by default — only render if there's something to look at
   if (data.anomalies.length === 0) {
     return (
-      <div className="bg-surface border border-emerald-500/20 rounded-2xl p-5">
-        <p className="text-[9px] uppercase tracking-widest font-bold text-emerald-400 mb-1">
+      <div className="bg-surface border border-primary/20 rounded-2xl p-5">
+        <p className="text-[9px] uppercase tracking-widest font-bold text-primary mb-1">
           ✓ Nothing unusual
         </p>
         <p className="text-xs text-muted/60">

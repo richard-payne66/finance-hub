@@ -116,7 +116,7 @@ export default function MigrationsPanel() {
               className={
                 "px-3 py-2 rounded-lg border text-[11px] " +
                 (r.ok
-                  ? "bg-emerald-500/8 border-emerald-500/20 text-emerald-300"
+                  ? "bg-primary/8 border-primary/20 text-primary"
                   : "bg-red-500/8 border-red-500/20 text-red-300")
               }
             >
@@ -150,7 +150,7 @@ export default function MigrationsPanel() {
                 key={m.filename}
                 className="text-[12px] font-mono text-muted/50 pl-2 py-0.5"
               >
-                <span className="text-emerald-400/70">✓</span> {m.filename}
+                <span className="text-primary/70">✓</span> {m.filename}
                 {m.appliedAt && (
                   <span className="text-muted/30 ml-2">
                     {new Date(m.appliedAt).toLocaleDateString("en-GB")}

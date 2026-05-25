@@ -144,8 +144,8 @@ export default function ShareLink() {
 
       {/* One-time password reveal after creation */}
       {justCreated && justCreated.password && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 mb-3">
-          <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-bold mb-2">
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 mb-3">
+          <p className="text-[9px] text-primary uppercase tracking-widest font-bold mb-2">
             ✓ Link created — copy the password now
           </p>
           <div className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export default function ShareLink() {
                 <div className="flex items-center gap-2">
                   <p className="text-xs font-bold text-foreground">{t.label}</p>
                   {t.protected && (
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-400/80 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-primary/80 px-1.5 py-0.5 rounded-full bg-primary/10 border border-primary/20">
                       🔒 Password
                     </span>
                   )}

@@ -105,17 +105,17 @@ export default function GmailQueueCard() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[9px] uppercase tracking-widest font-bold text-muted/70 mb-2">
-            📧 Email receipts · weekly auto-check
+            📧 Email receipts · daily auto-check
           </p>
 
           {pending > 0 ? (
             <p className="text-sm text-foreground mb-1">
-              <span className="font-bold text-primary">{pending}</span> waiting in your{" "}
-              <span className="font-mono text-muted/70">receipts@</span> mailbox.
+              <span className="font-bold text-primary">{pending}</span> looking like
+              receipts/invoices in your inbox right now.
             </p>
           ) : (
             <p className="text-sm text-foreground/70 mb-1">
-              Nothing waiting. We&apos;ll check again Friday afternoon.
+              No new receipts in your inbox.
             </p>
           )}
 
@@ -135,7 +135,7 @@ export default function GmailQueueCard() {
             </p>
           ) : (
             <p className="text-[11px] text-muted/40 leading-relaxed italic">
-              No run recorded yet — the next scheduled check is Friday ~14:00 UK.
+              No run recorded yet — auto-checks every morning at 06:00 UTC.
             </p>
           )}
         </div>
@@ -148,7 +148,7 @@ export default function GmailQueueCard() {
         </button>
       </div>
       {result && (
-        <p className={`text-[11px] mt-3 font-mono ${result.startsWith("✓") ? "text-emerald-400" : "text-rose-400"}`}>
+        <p className={`text-[11px] mt-3 font-mono ${result.startsWith("✓") ? "text-primary" : "text-rose-400"}`}>
           {result}
         </p>
       )}

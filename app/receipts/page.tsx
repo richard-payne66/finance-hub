@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/app/lib/db";
 import type { Receipt } from "@/app/lib/types";
 import CaptureWidget from "@/app/components/CaptureWidget";
+import ReceiptActions from "./ReceiptActions";
 
 // Cache the page for 30s. router.refresh() in CaptureWidget bypasses this
 // so a newly captured receipt still appears immediately after upload.
@@ -49,7 +50,7 @@ async function getReceipts(): Promise<Array<Receipt & { thumbUrl: string | null 
 function statusPill(status: string) {
   const map: Record<string, string> = {
     pending: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-    approved: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    approved: "bg-primary/15 text-primary border-primary/30",
     rejected: "bg-red-500/15 text-red-400 border-red-500/30",
     failed: "bg-red-900/30 text-red-300 border-red-700/30",
   };
@@ -189,19 +190,10 @@ function ReceiptCard({ receipt: r }: { receipt: Receipt & { thumbUrl: string | n
 
         <div className="flex gap-2 mt-3 flex-wrap">
           <Link href={`/receipts/${r.id}`}
-            className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-all">
+            className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-muted hover:border-white/30 hover:text-foreground transition-all">
             Edit
           </Link>
-          {r.status === "pending" && (<>
-            <button disabled title="FreeAgent push — Phase 4"
-              className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 disabled:opacity-40 disabled:cursor-default">
-              Approve
-            </button>
-            <button disabled title="Phase 4"
-              className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/10 text-muted disabled:opacity-40 disabled:cursor-default">
-              Reject
-            </button>
-          </>)}
+          <ReceiptActions id={r.id} status={r.status} />
           {viewUrl && (
             <a href={viewUrl} target="_blank" rel="noopener noreferrer"
               className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/10 text-muted hover:border-white/20 hover:text-foreground transition-all">

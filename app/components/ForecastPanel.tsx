@@ -40,8 +40,8 @@ export default function ForecastPanel() {
 
   if (within90.length === 0) {
     return (
-      <div className="bg-surface border border-emerald-500/20 rounded-2xl p-5">
-        <p className="text-[9px] uppercase tracking-widest font-bold text-emerald-400 mb-1">
+      <div className="bg-surface border border-primary/20 rounded-2xl p-5">
+        <p className="text-[9px] uppercase tracking-widest font-bold text-primary mb-1">
           🗓️ Upcoming bills
         </p>
         <p className="text-sm text-muted/80">No HMRC bills due in the next 90 days.</p>
@@ -74,7 +74,7 @@ export default function ForecastPanel() {
               </span>
               <span className="text-sm text-foreground/90 truncate">{e.label}</span>
               {e.dd_enabled ? (
-                <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 shrink-0">
                   🔒 DD
                 </span>
               ) : (e.kind === "vat" || e.kind === "corp_tax" || e.kind === "self_assessment" || e.kind === "paye") ? (

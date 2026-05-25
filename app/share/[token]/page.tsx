@@ -73,9 +73,9 @@ export default async function SharePage({
       <header className="mb-10">
         <h1 className="text-2xl font-black tracking-tight text-foreground">RICHARD PAYNE LTD</h1>
         <p className="text-xs text-muted/60 mt-1">Shared documents — {totalDocs} files · view and download only</p>
-        <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+        <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
             Secure read-only link
           </span>
         </div>

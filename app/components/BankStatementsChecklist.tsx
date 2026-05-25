@@ -43,7 +43,7 @@ export default function BankStatementsChecklist() {
               <div className="flex items-center gap-2">
                 {ready ? (
                   <>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
                       ✓ {yearDocs.length} files
                     </span>
                     {/* Link to filtered view — individual downloads on share page */}

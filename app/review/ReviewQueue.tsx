@@ -94,9 +94,9 @@ export default function ReviewQueue() {
   }
   if (queue.length === 0) {
     return (
-      <div className="bg-surface border border-emerald-500/20 rounded-2xl p-8 text-center">
+      <div className="bg-surface border border-primary/20 rounded-2xl p-8 text-center">
         <p className="text-3xl mb-2">✓</p>
-        <p className="text-sm font-bold text-emerald-400">Queue empty</p>
+        <p className="text-sm font-bold text-primary">Queue empty</p>
         <p className="text-xs text-muted/60 mt-2">
           Nothing waiting for review. The AI bookkeeper is up to date.
         </p>
@@ -117,7 +117,7 @@ export default function ReviewQueue() {
         />
         <button
           onClick={approveAllHighConfidence}
-          className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25 transition-colors shrink-0"
+          className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full bg-primary/15 text-primary border border-primary/40 hover:bg-primary/25 transition-colors shrink-0"
         >
           Approve all ≥70%
         </button>
@@ -201,7 +201,7 @@ function ReviewCard({
             {fmtDate(e.txn_date)} · {isOut ? "out" : "in"}
           </p>
         </div>
-        <p className={`text-base font-bold font-mono shrink-0 ${isOut ? "text-foreground" : "text-emerald-400"}`}>
+        <p className={`text-base font-bold font-mono shrink-0 ${isOut ? "text-foreground" : "text-primary"}`}>
           {isOut ? "−" : "+"}{GBP.format(Math.abs(e.txn_amount))}
         </p>
       </div>
@@ -217,7 +217,7 @@ function ReviewCard({
           <p className="text-[11px] text-muted/60 mt-1 leading-snug">{e.reasoning}</p>
         )}
         {e.tax_note && (
-          <p className="text-[11px] text-emerald-400/70 mt-1 italic">💰 {e.tax_note}</p>
+          <p className="text-[11px] text-primary/70 mt-1 italic">💰 {e.tax_note}</p>
         )}
       </div>
 
@@ -271,7 +271,7 @@ function ReviewCard({
         <button
           onClick={onApprove}
           disabled={busy || !selectedCategory}
-          className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25 transition-colors disabled:opacity-40"
+          className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full bg-primary/15 text-primary border border-primary/40 hover:bg-primary/25 transition-colors disabled:opacity-40"
         >
           {busy ? "…" : override && override !== e.category_url ? "✓ Apply override" : "✓ Approve"}
         </button>
