@@ -5,6 +5,7 @@ import { db } from "@/app/lib/db";
 import { extractReceipt } from "@/app/lib/claude-extract";
 import { isOwnBusiness } from "@/app/lib/own-business";
 import { lookupRule } from "@/app/lib/category-rules";
+import { findDuplicate } from "@/app/lib/receipt-dedupe";
 import type { SupportedMimeType } from "@/app/lib/claude-extract";
 import { errorResponse } from "@/app/lib/api-helpers";
 import type { ReceiptSource } from "@/app/lib/types";
@@ -170,6 +171,31 @@ export async function POST(req: NextRequest) {
             extracted.suggested_freeagent_category_url = rule.category_url;
             extracted.suggested_freeagent_category_name = rule.category_name;
           }
+        }
+
+        // Duplicate guard. If a non-rejected receipt already exists
+        // with the same supplier + date + total, flip the stub to
+        // 'rejected' so we keep the image but don't double-count.
+        const existingDupe = await findDuplicate({
+          supplier: extracted.supplier,
+          supply_date: extracted.supply_date,
+          gross_total: extracted.gross_total,
+          currency: extracted.currency,
+          excludeId: stub.id,
+        }).catch(() => null);
+        if (existingDupe) {
+          await db()
+            .from("receipts")
+            .update({
+              status: "rejected",
+              supplier: extracted.supplier,
+              gross_total: extracted.gross_total,
+              supply_date: extracted.supply_date,
+              notes: `Duplicate of receipt ${existingDupe.receipt_id} (same supplier/date/total).`,
+              possible_dupe: true,
+            })
+            .eq("id", stub.id);
+          return;
         }
 
         // Outgoing-invoice guard. Same logic as the email path: if the

@@ -17,6 +17,7 @@ import { isOwnBusiness } from "@/app/lib/own-business";
 import { api as faApi, isConnected as faIsConnected, loadTokens as faLoadTokens } from "@/app/lib/freeagent";
 import { getCategories, receiptRelevant } from "@/app/lib/fa-categories";
 import { lookupRule } from "@/app/lib/category-rules";
+import { findDuplicate } from "@/app/lib/receipt-dedupe";
 import { errorResponse } from "@/app/lib/api-helpers";
 
 export const maxDuration = 300;
@@ -292,6 +293,25 @@ async function processMessage(msg: GmailFullMessage, processedLabelId: string): 
           extracted.suggested_freeagent_category_url = rule.category_url;
           extracted.suggested_freeagent_category_name = rule.category_name;
         }
+      }
+
+      // Duplicate guard. FreeAgent / Stripe often send 3-4 emails per
+      // transaction (invoice PDF, receipt PDF, email body PDF, etc) —
+      // each with a different SHA256 so the file dedup misses them. If
+      // we already have a non-rejected receipt with the same supplier
+      // + date + total, skip the new one and log.
+      const existingDupe = await findDuplicate({
+        supplier: extracted.supplier,
+        supply_date: extracted.supply_date,
+        gross_total: extracted.gross_total,
+        currency: extracted.currency,
+      }).catch(() => null);
+      if (existingDupe) {
+        result.errors.push(`Duplicate of receipt ${existingDupe.receipt_id} (same supplier/date/total) — skipped`);
+        try {
+          await db().from("processed_files").insert({ file_sha256: hash, receipt_id: existingDupe.receipt_id });
+        } catch {}
+        continue;
       }
 
       // Outgoing-invoice guard: when FA/Stripe email Richard a copy of
