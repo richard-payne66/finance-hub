@@ -20,7 +20,6 @@ export type ClaudeReceiptData = {
     quantity?: number | null;
     unit_price?: number | null;
     line_total?: number | null;
-    vat_rate?: string | null;
   }>;
   suggested_freeagent_category_url: string | null;
   suggested_freeagent_category_name: string | null;
@@ -72,7 +71,9 @@ const RECEIPT_SCHEMA = {
           quantity: { type: ["number", "null"] },
           unit_price: { type: ["number", "null"] },
           line_total: { type: ["number", "null"] },
-          vat_rate: { type: ["string", "null"] },
+          // Per-line vat_rate dropped — receipt-level vat_rate is what
+          // matters for VAT returns and we'd hit Anthropic's 16-union-
+          // parameter limit if we kept it.
         },
         required: ["description"],
         additionalProperties: false,
