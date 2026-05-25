@@ -52,17 +52,22 @@ export default function GmailQueueCard() {
     load();
   }, []);
 
-  async function processNow() {
+  async function runScan(opts: { force?: boolean; days?: number } = {}) {
     setBusy(true);
     setResult(null);
     try {
-      const r = await fetch("/api/gmail-receipts", { method: "POST" });
+      const qs = new URLSearchParams();
+      if (opts.force) qs.set("force", "true");
+      if (opts.days) qs.set("days", String(opts.days));
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      const r = await fetch(`/api/gmail-receipts${suffix}`, { method: "POST" });
       const j = await r.json();
       if (r.ok) {
         const created = j.receipts_created ?? 0;
         const matched = j.bank_matches ?? 0;
+        const checked = j.processed_messages ?? 0;
         setResult(
-          `✓ ${created} receipt${created !== 1 ? "s" : ""} created${matched > 0 ? ` · ${matched} auto-attached to bank` : ""}`,
+          `✓ Scanned ${checked} email${checked !== 1 ? "s" : ""}${created > 0 ? ` · ${created} new receipt${created !== 1 ? "s" : ""}` : " · 0 new"}${matched > 0 ? ` · ${matched} auto-attached to bank` : ""}`,
         );
         load();
       } else {
@@ -74,6 +79,9 @@ export default function GmailQueueCard() {
       setBusy(false);
     }
   }
+
+  const processNow = () => runScan();
+  const rescanLast10 = () => runScan({ force: true, days: 10 });
 
   if (!status) return null;
 
@@ -139,13 +147,23 @@ export default function GmailQueueCard() {
             </p>
           )}
         </div>
-        <button
-          onClick={processNow}
-          disabled={busy}
-          className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary text-background hover:opacity-90 transition-opacity disabled:opacity-40"
-        >
-          {busy ? "Checking…" : pending > 0 ? "Process now" : "Check now"}
-        </button>
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          <button
+            onClick={processNow}
+            disabled={busy}
+            className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary text-background hover:opacity-90 transition-opacity disabled:opacity-40"
+          >
+            {busy ? "Checking…" : pending > 0 ? "Process now" : "Check now"}
+          </button>
+          <button
+            onClick={rescanLast10}
+            disabled={busy}
+            title="Re-scan the last 10 days even for emails already marked Receipts-Processed. SHA256 dedup still stops duplicates."
+            className="text-[9px] uppercase tracking-widest text-muted/60 hover:text-primary transition-colors disabled:opacity-40"
+          >
+            Rescan last 10 days ↻
+          </button>
+        </div>
       </div>
       {result && (
         <p className={`text-[11px] mt-3 font-mono ${result.startsWith("✓") ? "text-primary" : "text-rose-400"}`}>

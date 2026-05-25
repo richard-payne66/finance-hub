@@ -39,19 +39,28 @@ export const maxDuration = 300;
 //
 // `has:attachment` keeps us out of order-confirmation noise that doesn't
 // include the actual receipt PDF.
-const QUERY = [
-  "(",
-  "  to:receipts@richard-payne.com",
-  "  OR label:RECEIPTS",
-  "  OR subject:(receipt OR invoice OR \"order confirmation\" OR \"payment confirmation\" OR \"your purchase\")",
-  ")",
-  "has:attachment",
-  "-from:richard-payne.com",
-  "-from:info@richard-payne.com",
-  "-from:no-reply@richard-payne.com",
-  "-label:Receipts-Processed",
-  "newer_than:30d",
-].join(" ");
+// Default scan: last 30 days, skipping anything already labelled Receipts-
+// Processed. Rescan mode (?days=N&force=true) lets the user manually
+// re-check a smaller window without the "already processed" filter — the
+// per-file SHA256 dedup still stops it creating duplicates.
+function buildQuery({ days = 30, includeProcessed = false }: { days?: number; includeProcessed?: boolean } = {}): string {
+  const parts: string[] = [
+    "(",
+    "  to:receipts@richard-payne.com",
+    "  OR label:RECEIPTS",
+    "  OR subject:(receipt OR invoice OR \"order confirmation\" OR \"payment confirmation\" OR \"your purchase\")",
+    ")",
+    "has:attachment",
+    "-from:richard-payne.com",
+    "-from:info@richard-payne.com",
+    "-from:no-reply@richard-payne.com",
+  ];
+  if (!includeProcessed) parts.push("-label:Receipts-Processed");
+  parts.push(`newer_than:${days}d`);
+  return parts.join(" ");
+}
+
+const QUERY = buildQuery();
 const PROCESSED_LABEL_NAME = "Receipts-Processed";
 
 // HEIC/HEIF excluded — Claude needs jpeg/png/webp/pdf. Email-forwarded
@@ -360,18 +369,30 @@ export async function GET() {
   }
 }
 
-// POST — actually process pending receipt emails
-export async function POST() {
+// POST — actually process pending receipt emails.
+//
+// Query parameters:
+//   ?days=N      — lookback window (default 30, max 60)
+//   ?force=true  — include emails already labelled Receipts-Processed
+//                  so we can rescan a window without the dedup label
+//                  filter. SHA256 dedup still prevents duplicates.
+export async function POST(req: NextRequest) {
   try {
     if (!(await isConnected())) {
       return NextResponse.json({ error: "Google not connected." }, { status: 400 });
     }
+    const url = new URL(req.url);
+    const force = url.searchParams.get("force") === "true";
+    const daysParam = Number.parseInt(url.searchParams.get("days") ?? "30", 10);
+    const days = Math.min(60, Math.max(1, Number.isFinite(daysParam) ? daysParam : 30));
+
+    const query = buildQuery({ days, includeProcessed: force });
     const labelId = await ensureProcessedLabel();
-    const messages = await searchMessages(QUERY, 25);
+    const messages = await searchMessages(query, 25);
 
     const results: ProcessResult[] = [];
     for (const m of messages) {
-      if (await alreadyProcessed(m.id)) {
+      if (!force && (await alreadyProcessed(m.id))) {
         // Belt-and-braces: mark it processed in Gmail too so the search doesn't return it again
         try { await markProcessed(m.id, labelId); } catch {}
         continue;
@@ -381,6 +402,7 @@ export async function POST() {
     }
 
     return NextResponse.json({
+      query_used: query,
       processed_messages: results.length,
       receipts_created: results.reduce((s, r) => s + r.receipts_created, 0),
       bank_matches: results.reduce((s, r) => s + r.bank_matches, 0),
