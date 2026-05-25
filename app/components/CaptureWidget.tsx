@@ -119,16 +119,19 @@ export default function CaptureWidget({ compact = false }: { compact?: boolean }
 
       // Try to parse JSON; fall back to text so we can see what's broken
       let detail = "";
+      let underlying = "";
       try {
         const j = await res.json();
         detail = j.error ?? j.message ?? JSON.stringify(j);
+        underlying = j.detail ?? "";
       } catch {
         try { detail = (await res.text()).slice(0, 400); }
         catch { detail = "(no body)"; }
       }
 
       if (!res.ok) {
-        setErrorMsg(`HTTP ${res.status}: ${detail}`);
+        const combined = underlying ? `${detail} — ${underlying}` : detail;
+        setErrorMsg(`HTTP ${res.status}: ${combined}`);
         setPhase("error");
         return;
       }
