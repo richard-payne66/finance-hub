@@ -1,5 +1,6 @@
 import BankStatementsChecklist from "@/app/components/BankStatementsChecklist";
 import DocumentChecklist from "@/app/components/DocumentChecklist";
+import MigrationsPanel from "@/app/components/MigrationsPanel";
 import ShareLink from "@/app/components/ShareLink";
 import SmartDocumentUpload from "@/app/components/SmartDocumentUpload";
 
@@ -18,6 +19,7 @@ export default function SetupPage() {
         <ShareLink />
         <BankStatementsChecklist />
         <DocumentChecklist />
+        <MigrationsPanel />
       </div>
     </main>
   );
