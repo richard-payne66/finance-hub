@@ -15,6 +15,8 @@ import {
 import { extractReceipt } from "@/app/lib/claude-extract";
 import { isOwnBusiness } from "@/app/lib/own-business";
 import { api as faApi, isConnected as faIsConnected, loadTokens as faLoadTokens } from "@/app/lib/freeagent";
+import { getCategories, receiptRelevant } from "@/app/lib/fa-categories";
+import { lookupRule } from "@/app/lib/category-rules";
 import { errorResponse } from "@/app/lib/api-helpers";
 
 export const maxDuration = 300;
@@ -268,13 +270,29 @@ async function processMessage(msg: GmailFullMessage, processedLabelId: string): 
         continue;
       }
 
-      // Extract with Claude. process-receipt route caches categories;
-      // here we just call extractReceipt directly.
+      // Extract with Claude — passing the (filtered) FreeAgent categories
+      // so Claude can pick the most appropriate one. Was passing [] which
+      // meant every email-imported receipt landed uncategorised.
       const claudeMime = att.mimeType === "application/pdf"
         ? "application/pdf"
         : (att.mimeType as "image/jpeg" | "image/png" | "image/webp");
-      const categoriesJson = JSON.stringify([]); // not used for category suggestion in v1
+      const allCats = await getCategories().catch(() => []);
+      const relevantCats = allCats.filter(receiptRelevant);
+      const categoriesJson = JSON.stringify(
+        relevantCats.map((c) => ({ url: c.url, description: c.description, type: c.group_description })),
+      );
       const extracted = await extractReceipt(buffer, claudeMime, categoriesJson);
+
+      // Apply learned vendor → category rule on top of Claude's guess.
+      // If Richard has previously approved "Anthropic, PBC" as Computer
+      // Software, that mapping wins over whatever Claude picks today.
+      if (extracted.supplier) {
+        const rule = await lookupRule(extracted.supplier).catch(() => null);
+        if (rule) {
+          extracted.suggested_freeagent_category_url = rule.category_url;
+          extracted.suggested_freeagent_category_name = rule.category_name;
+        }
+      }
 
       // Outgoing-invoice guard: when FA/Stripe email Richard a copy of
       // an invoice he sent to a client, the from: filter doesn't catch

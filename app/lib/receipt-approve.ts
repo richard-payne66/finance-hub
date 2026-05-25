@@ -20,6 +20,7 @@ import {
   isConnected as faIsConnected,
 } from "@/app/lib/freeagent";
 import type { Receipt } from "@/app/lib/types";
+import { upsertRule } from "@/app/lib/category-rules";
 
 export type ApproveResult = {
   ok: boolean;
@@ -193,6 +194,17 @@ export async function approveReceipt(
         pushed_at: new Date().toISOString(),
       })
       .eq("id", r.id);
+
+    // Teach the system this supplier→category for next time. Now when
+    // a new Anthropic receipt lands, it auto-picks Computer Software
+    // before Claude even has to guess.
+    if (r.supplier && r.category_url && r.category_name) {
+      await upsertRule({
+        description: r.supplier,
+        category_url: r.category_url,
+        category_name: r.category_name,
+      }).catch(() => {});
+    }
 
     return { ok: true, pushed: true, freeagent_url: fa.expense.url };
   } catch (err) {

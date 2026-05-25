@@ -127,8 +127,9 @@ export default function ReceiptEditor({ receipt }: { receipt: Receipt }) {
         throw new Error(j.detail ?? j.error ?? `HTTP ${res.status}`);
       }
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-      router.refresh();
+      // Bounce back to the list once the save lands — the brief "✓ Saved"
+      // flash gives just enough confirmation before the route changes.
+      setTimeout(() => router.push("/receipts"), 600);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {

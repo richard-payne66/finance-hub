@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { db } from "@/app/lib/db";
 import { extractReceipt } from "@/app/lib/claude-extract";
 import { isOwnBusiness } from "@/app/lib/own-business";
+import { lookupRule } from "@/app/lib/category-rules";
 import type { SupportedMimeType } from "@/app/lib/claude-extract";
 import { errorResponse } from "@/app/lib/api-helpers";
 import type { ReceiptSource } from "@/app/lib/types";
@@ -161,6 +162,15 @@ export async function POST(req: NextRequest) {
       try {
         const categoriesJson = await getCategoriesJson();
         const extracted = await extractReceipt(buffer, claudeMime, categoriesJson);
+
+        // Apply learned vendor → category rule on top of Claude's guess.
+        if (extracted.supplier) {
+          const rule = await lookupRule(extracted.supplier).catch(() => null);
+          if (rule) {
+            extracted.suggested_freeagent_category_url = rule.category_url;
+            extracted.suggested_freeagent_category_name = rule.category_name;
+          }
+        }
 
         // Outgoing-invoice guard. Same logic as the email path: if the
         // extracted supplier is Richard's own business, this isn't an

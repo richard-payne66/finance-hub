@@ -74,8 +74,14 @@ function fmtDate(iso: string | null) {
 
 export default async function ReceiptsPage() {
   const receipts = await getReceipts();
+  // Rejected receipts are intentionally hidden from the default view —
+  // they're noise once a decision is made. The collapsible section at
+  // the bottom lets the user pull them back if they want.
   const pending = receipts.filter((r) => r.status === "pending");
-  const rest = receipts.filter((r) => r.status !== "pending");
+  const rest = receipts.filter(
+    (r) => r.status !== "pending" && r.status !== "rejected",
+  );
+  const rejected = receipts.filter((r) => r.status === "rejected");
 
   return (
     <main className="min-h-screen px-4 sm:px-8 py-6 max-w-4xl mx-auto">
@@ -117,6 +123,17 @@ export default async function ReceiptsPage() {
             {rest.map((r) => <ReceiptCard key={r.id} receipt={r} />)}
           </div>
         </section>
+      )}
+
+      {rejected.length > 0 && (
+        <details className="mt-8 group">
+          <summary className="cursor-pointer list-none text-[9px] text-muted/40 uppercase tracking-widest font-bold hover:text-muted/70 transition-colors">
+            Show rejected ({rejected.length}) ▾
+          </summary>
+          <div className="flex flex-col gap-3 mt-3">
+            {rejected.map((r) => <ReceiptCard key={r.id} receipt={r} />)}
+          </div>
+        </details>
       )}
     </main>
   );
