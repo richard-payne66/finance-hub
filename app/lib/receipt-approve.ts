@@ -170,21 +170,44 @@ export async function approveReceipt(
     // attach manually in FA if needed.
     const attachment = await buildAttachment(r.receipt_image_url).catch(() => null);
 
-    const fa = await faApiSend<FaExpenseResponse>("/expenses", "POST", {
+    // CRITICAL SIGN CONVENTION:
+    //
+    // FreeAgent's /v2/expenses gross_value is signed FROM THE CLAIMANT'S
+    // PERSPECTIVE — negative means "the company owes the claimant for
+    // money they spent" (i.e. an EXPENSE), positive means "the claimant
+    // owes the company a refund" (the opposite).
+    //
+    // Earlier code was passing the positive amount Claude extracts, so
+    // everything landed in FA as a REFUND. Forcing negative here for
+    // both gross_value and the explicit VAT amount.
+    const grossExpense = -Math.abs(r.gross_total);
+    const vatExpense =
+      r.vat_total != null ? -Math.abs(r.vat_total) : null;
+
+    const payload = {
       expense: {
         user: userUrl,
         category: r.category_url,
-        gross_value: r.gross_total,
+        gross_value: grossExpense,
         dated_on: r.supply_date,
         description: r.description ?? r.supplier ?? "Receipt",
         sales_tax_status: salesTaxStatus,
         ...(salesTaxRate != null ? { sales_tax_rate: salesTaxRate } : {}),
-        ...(r.vat_total != null
-          ? { manual_sales_tax_amount: r.vat_total }
+        ...(vatExpense != null
+          ? { manual_sales_tax_amount: vatExpense }
           : {}),
         ...(attachment ? { attachment } : {}),
       },
-    });
+    };
+
+    // If we already pushed this receipt and have its FA URL, UPDATE
+    // instead of creating a second expense line. That makes the
+    // "Push again to FA" button + a forced re-approve idempotent
+    // and lets us correct earlier wrong-signed pushes.
+    const fa: FaExpenseResponse =
+      opts.force && r.freeagent_url
+        ? await faApiSend<FaExpenseResponse>(r.freeagent_url, "PUT", payload).then(() => ({ expense: { url: r.freeagent_url! } }))
+        : await faApiSend<FaExpenseResponse>("/expenses", "POST", payload);
 
     await db()
       .from("receipts")
