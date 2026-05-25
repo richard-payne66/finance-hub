@@ -49,9 +49,19 @@ const RECEIPT_SCHEMA = {
     net_total: { type: ["number", "null"] },
     vat_total: { type: ["number", "null"] },
     vat_rate: { type: ["string", "null"] },
+    // Anthropic's strict output_config schema validator rejects
+    // type: ["string", "null"] combined with enum: [...strings, null]
+    // because the enum is checked against the *array* type declaration
+    // rather than its members. Express the nullability with anyOf so
+    // each branch carries an unambiguous type + matching enum.
     payment_method: {
-      type: ["string", "null"],
-      enum: ["card", "cash", "bank_transfer", "direct_debit", null],
+      anyOf: [
+        { type: "null" },
+        {
+          type: "string",
+          enum: ["card", "cash", "bank_transfer", "direct_debit"],
+        },
+      ],
     },
     line_items: {
       type: "array",
