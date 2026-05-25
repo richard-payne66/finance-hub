@@ -404,11 +404,16 @@ export async function POST(req: NextRequest) {
     const url = new URL(req.url);
     const force = url.searchParams.get("force") === "true";
     const daysParam = Number.parseInt(url.searchParams.get("days") ?? "30", 10);
-    const days = Math.min(60, Math.max(1, Number.isFinite(daysParam) ? daysParam : 30));
+    // Cap at 365 so the "scan past 3 months" backfill case works. The
+    // Vercel function timeout (300s) limits how many messages we can
+    // actually process per call — see batch size below.
+    const days = Math.min(365, Math.max(1, Number.isFinite(daysParam) ? daysParam : 30));
+    const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+    const limit = Math.min(100, Math.max(1, Number.isFinite(limitParam) ? limitParam : 50));
 
     const query = buildQuery({ days, includeProcessed: force });
     const labelId = await ensureProcessedLabel();
-    const messages = await searchMessages(query, 25);
+    const messages = await searchMessages(query, limit);
 
     const results: ProcessResult[] = [];
     for (const m of messages) {
