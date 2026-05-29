@@ -7,7 +7,12 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  // Recovery emails come back with type=recovery — route those to the
+  // "set new password" form so the user actually has somewhere to type
+  // their new password, instead of being dumped on the dashboard.
+  const type = searchParams.get("type");
+  const defaultNext = type === "recovery" ? "/auth/set-password" : "/";
+  const next = searchParams.get("next") ?? defaultNext;
 
   if (code) {
     const cookieStore = await cookies();
