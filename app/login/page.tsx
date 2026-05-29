@@ -1,37 +1,59 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
+// Email + password login (primary). Magic link fallback for the rare
+// case where Richard forgets the password.
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function supabase() {
+    return createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    );
+  }
+
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-    );
-
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase().auth.signInWithPassword({
       email: email.trim().toLowerCase(),
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      password,
     });
-
     setLoading(false);
     if (error) {
       setError(error.message);
-    } else {
-      setSent(true);
+      return;
     }
+    // Force a full reload so the middleware sees the new session cookie.
+    window.location.href = "/";
+    // Belt-and-braces in case the SPA navigation kicks in first
+    router.push("/");
+  }
+
+  async function sendMagicLink() {
+    if (!email) {
+      setError("Enter your email first.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase().auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setLoading(false);
+    if (error) setError(error.message);
+    else setMagicSent(true);
   }
 
   return (
@@ -46,29 +68,48 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {sent ? (
+        {magicSent ? (
           <div className="bg-surface border border-white/8 rounded-xl p-6 text-center">
             <p className="text-2xl mb-3">📬</p>
             <p className="text-sm font-bold text-foreground mb-1">Check your email</p>
             <p className="text-xs text-muted/60">
-              Magic link sent to <span className="text-foreground">{email}</span>
-              <br />
+              Magic link sent to <span className="text-foreground">{email}</span>.
               Click it to sign in — no password needed.
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="bg-surface border border-white/8 rounded-xl p-6 flex flex-col gap-4">
+          <form
+            onSubmit={handleLogin}
+            className="bg-surface border border-white/8 rounded-xl p-6 flex flex-col gap-4"
+          >
             <div>
               <label className="block text-[9px] font-bold uppercase tracking-widest text-muted mb-2">
-                Email address
+                Email
               </label>
               <input
                 type="email"
                 required
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full bg-surface-light border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted/30 focus:outline-none focus:border-primary transition-colors"
+                style={{ fontSize: "16px" }}
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold uppercase tracking-widest text-muted mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-surface-light border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted/30 focus:outline-none focus:border-primary transition-colors"
+                style={{ fontSize: "16px" }}
               />
             </div>
 
@@ -80,10 +121,19 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || !email}
+              disabled={loading || !email || !password}
               className="w-full px-4 py-2.5 rounded-full bg-primary text-background text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {loading ? "Sending…" : "Send magic link"}
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+
+            <button
+              type="button"
+              onClick={sendMagicLink}
+              disabled={loading || !email}
+              className="text-[9px] uppercase tracking-widest text-muted/50 hover:text-foreground transition-colors disabled:opacity-40"
+            >
+              Forgot password? Send magic link instead
             </button>
           </form>
         )}
