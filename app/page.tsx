@@ -26,8 +26,8 @@ export default function Home() {
         <div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">FINANCE HUB</h1>
           <p className="text-xs text-muted/70 mt-1 max-w-md leading-relaxed">
-            Your safety net. Anything that needs <em>you</em> is up top — everything below
-            it, I&apos;m already handling. So you don&apos;t have to hope it got done.
+            Your safety net. Anything that needs you sits up top — everything below,
+            I&apos;m already handling. So you never have to wonder if it got done.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">

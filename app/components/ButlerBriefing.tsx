@@ -11,6 +11,7 @@ const fmtDate = (iso: string) =>
 type Headroom = {
   cash_today: number;
   tax_owed: number;
+  stale_unpaid?: number;
   safe_dividend: number;
   status: "comfortable" | "tight" | "negative";
   note: string;
@@ -74,6 +75,7 @@ export default function ButlerBriefing() {
   const notConnected = !h || /connect freeagent/i.test(h.note ?? "");
   const safe = h?.safe_dividend ?? 0;
   const taxOwed = h?.tax_owed ?? 0;
+  const stale = h?.stale_unpaid ?? 0;
   const hasQueue = queue > 0;
   const hasBill = !!bill;
   const needs = hasQueue || hasBill;
@@ -90,14 +92,16 @@ export default function ButlerBriefing() {
     moneyLine = (
       <>
         You can safely take about <strong className="text-primary">{GBP.format(safe)}</strong> out right now
-        {taxOwed > 0 ? <> — that&apos;s after keeping <strong className="text-foreground/90">{GBP.format(taxOwed)}</strong> aside for tax.</> : <>.</>}
+        {taxOwed > 0 ? <>, after keeping <strong className="text-foreground/90">{GBP.format(taxOwed)}</strong> aside for tax.</> : <>.</>}
       </>
     );
   } else {
     moneyLine = (
       <>
-        I&apos;d hold off taking money out for now — once tax{taxOwed > 0 ? <> ({GBP.format(taxOwed)})</> : null} and a
-        month&apos;s buffer are covered, there&apos;s nothing spare yet.
+        I&apos;d hold off taking money out right now
+        {taxOwed > 0
+          ? <> — your cash is short of the <strong className="text-foreground/90">{GBP.format(taxOwed)}</strong> in tax due soon, plus a month&apos;s buffer.</>
+          : <> — cash is below a safe buffer once a month&apos;s costs are covered.</>}
       </>
     );
   }
@@ -118,6 +122,15 @@ export default function ButlerBriefing() {
 
       {/* The CFO line */}
       <p className="text-[15px] text-foreground/85 leading-relaxed">{moneyLine}</p>
+
+      {/* Transparency: old "unpaid" tax FreeAgent never reconciled. */}
+      {stale > 500 && (
+        <p className="text-[12px] text-muted/55 leading-relaxed mt-2">
+          FreeAgent still shows <strong className="text-foreground/75">{GBP.format(stale)}</strong> of older VAT/Corporation
+          Tax as unpaid. If you&apos;ve already paid those (likely, by direct debit), mark them paid in FreeAgent so this stays
+          accurate — it&apos;s not counted against what&apos;s safe to take.
+        </p>
+      )}
 
       {/* What needs you */}
       <div className="mt-4 flex flex-col gap-2">

@@ -120,7 +120,7 @@ export default function OptimisationsPanel() {
       )}
 
       <p className="text-[9px] text-muted/30 mt-4 leading-relaxed">
-        UK tax year 2025/26 estimates for single-director Ltd. Check with your accountant before changing.
+        UK tax year 2026/27 estimates for single-director Ltd. Check with your accountant before changing.
       </p>
     </div>
   );
