@@ -1,14 +1,13 @@
 import Link from "next/link";
-import type { DigestData } from "@/app/api/digest/route";
+import { getDigest, type DigestData } from "@/app/lib/digest";
 
 export const dynamic = "force-dynamic";
 
+// Call the digest computation directly server-side — do NOT fetch our own
+// API URL (that goes through the auth middleware with no session and 500s).
 async function fetchDigest(monthsBack: number): Promise<DigestData | null> {
-  const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
   try {
-    const r = await fetch(`${base}/api/digest?monthsBack=${monthsBack}`, { cache: "no-store" });
-    if (!r.ok) return null;
-    return r.json();
+    return await getDigest(monthsBack);
   } catch {
     return null;
   }

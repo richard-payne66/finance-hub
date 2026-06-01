@@ -14,10 +14,10 @@ export default function BookkeepingPage() {
           Bookkeeping
         </h1>
         <p className="text-xs text-muted/60 mt-1 max-w-lg leading-relaxed">
-          One place for your transactions. <strong className="text-foreground/80">Needs you</strong> is the short
-          list only you can decide; <strong className="text-foreground/80">Done for you</strong> is everything I&apos;ve
-          already filed; <strong className="text-foreground/80">Cross-check</strong> compares Monzo, FreeAgent and your
-          receipt emails to catch anything that doesn&apos;t line up.
+          One place for your transactions. <strong className="text-foreground/80">Needs you</strong>{" "}
+          is the short list only you can decide; <strong className="text-foreground/80">Done for you</strong>{" "}
+          is everything I&apos;ve already filed; <strong className="text-foreground/80">Cross-check</strong>{" "}
+          compares Monzo, FreeAgent and your receipt emails to catch anything that doesn&apos;t line up.
         </p>
       </header>
       <BookkeepingTabs />
