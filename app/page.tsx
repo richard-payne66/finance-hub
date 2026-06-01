@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import CaughtUpBanner from "./components/CaughtUpBanner";
+import ButlerBriefing from "./components/ButlerBriefing";
 import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
 import DataHealthPanel from "./components/DataHealthPanel";
@@ -38,8 +38,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* The one calm answer at the top: is anything waiting on you? */}
-      <CaughtUpBanner />
+      {/* The butler's opening briefing: where you stand + what needs you + ask */}
+      <ButlerBriefing />
 
       {/* HERO: the actionable list of ways to save money — Richard's goal */}
       <div className="mb-6">

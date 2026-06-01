@@ -1,15 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 type Msg = { role: "user" | "assistant"; content: string };
+
+// Open the butler from anywhere — optionally pre-asking a question.
+// e.g. openButler("Can I take £3,000 out this month?")
+export function openButler(question?: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("butler:open", { detail: { question } }));
+}
+
+const SUGGESTIONS = [
+  "Can I take £3,000 out this month?",
+  "Can I afford a £2,000 camera through the company?",
+  "Am I set aside enough for my next tax bill?",
+  "How much have I spent on software this year?",
+];
 
 // Render a single line of "butler" output: turn [text](/path) into a real
 // <Link>, leave **bold** bold, leave the rest as plain text.
 function renderInline(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  // Combined regex: markdown link OR bold marker.
   const re = /(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)/g;
   let cursor = 0;
   let m: RegExpExecArray | null;
@@ -60,7 +73,7 @@ function renderInline(text: string): React.ReactNode[] {
 function renderMessage(text: string): React.ReactNode {
   return text.split("\n").map((line, i) => (
     <p key={i} className="leading-relaxed mb-1.5 last:mb-0">
-      {renderInline(line).length ? renderInline(line) : " "}
+      {renderInline(line).length ? renderInline(line) : " "}
     </p>
   ));
 }
@@ -73,16 +86,22 @@ export default function ButlerChat() {
   const [err, setErr] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Refs so the stable sendText/event-listener always see current state.
+  const messagesRef = useRef<Msg[]>([]);
+  const busyRef = useRef(false);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, busy]);
 
-  async function send() {
-    const text = input.trim();
-    if (!text || busy) return;
-    const newMessages: Msg[] = [...messages, { role: "user", content: text }];
+  const sendText = useCallback(async (raw: string) => {
+    const text = raw.trim();
+    if (!text || busyRef.current) return;
+    const newMessages: Msg[] = [...messagesRef.current, { role: "user", content: text }];
     setMessages(newMessages);
     setInput("");
     setBusy(true);
@@ -101,12 +120,26 @@ export default function ButlerChat() {
     } finally {
       setBusy(false);
     }
-  }
+  }, []);
+
+  // Listen for openButler() calls from elsewhere in the app.
+  useEffect(() => {
+    function onOpen(e: Event) {
+      setOpen(true);
+      const q = (e as CustomEvent).detail?.question;
+      if (typeof q === "string" && q.trim()) {
+        // small delay so the panel is mounted before we fire
+        setTimeout(() => sendText(q), 60);
+      }
+    }
+    window.addEventListener("butler:open", onOpen);
+    return () => window.removeEventListener("butler:open", onOpen);
+  }, [sendText]);
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      send();
+      sendText(input);
     }
   }
 
@@ -133,7 +166,7 @@ export default function ButlerChat() {
                 Butler
               </p>
               <p className="text-[10px] text-muted/50 leading-tight">
-                Asks about receipts, taxes, strategy, anything.
+                Ask me anything — money, tax, receipts, decisions.
               </p>
             </div>
             <button
@@ -147,8 +180,19 @@ export default function ButlerChat() {
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-[13px]">
             {messages.length === 0 && (
-              <div className="text-muted/50 text-[12px] italic leading-relaxed">
-                Try: <em>&quot;what&apos;s my CT payment ref?&quot;</em>, <em>&quot;how much have I spent on Anthropic this year?&quot;</em>, <em>&quot;what&apos;s my VAT scheme?&quot;</em>, <em>&quot;draft an email to my accountant about EVs&quot;</em>.
+              <div className="space-y-2">
+                <p className="text-muted/50 text-[12px] italic leading-relaxed">
+                  Tap a question, or type your own:
+                </p>
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => sendText(s)}
+                    className="block w-full text-left text-[12.5px] text-foreground/80 px-3 py-2 rounded-xl border border-white/8 bg-white/[0.03] hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             )}
             {messages.map((m, i) => (
@@ -191,7 +235,7 @@ export default function ButlerChat() {
                 ⌘/Ctrl + Enter to send
               </p>
               <button
-                onClick={send}
+                onClick={() => sendText(input)}
                 disabled={busy || !input.trim()}
                 className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary text-background hover:opacity-90 transition-opacity disabled:opacity-40"
               >

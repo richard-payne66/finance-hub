@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/app/lib/db";
 import { errorResponse } from "@/app/lib/api-helpers";
 import { BUSINESS_FACTS, STRATEGY_BRIEF } from "@/app/lib/chat-knowledge";
+import { getDividendHeadroom } from "@/app/lib/headroom";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -33,8 +34,15 @@ Style:
   from the business facts directly. Don't add disclaimers.
 - If you genuinely don't know, say so once and offer to dig further.
 
-You have tools to query receipts and run aggregates. Use them whenever the
-answer needs live data.
+You have tools to query receipts, run aggregates, and read Richard's live
+money position. Use them whenever the answer needs live data.
+
+DECISIONS ("Can I…?"): when Richard asks whether he can afford something, take
+money out, or pay a dividend, ALWAYS call financial_position first, then answer
+with a clear yes/no, the safe number, and one short sentence of why. "Safe to
+take" = the safe_dividend figure (cash left after tax owed and a one-month
+buffer). Never guess these numbers — read them from the tool. If what he wants
+is below safe_dividend, the answer is yes; if above, say what IS safe instead.
 
 Knowledge below.
 
@@ -88,6 +96,12 @@ const TOOLS: Anthropic.Messages.Tool[] = [
       type: "object",
       properties: { limit: { type: "integer", description: "How many (default 10)" } },
     },
+  },
+  {
+    name: "financial_position",
+    description:
+      "Richard's live money position from FreeAgent: cash in the bank now, total tax owed (VAT + Corporation Tax + anything manual), a sensible one-month operating buffer, and the resulting amount he could SAFELY take out as a dividend right now (safe_dividend). Use this for ANY question about affording a purchase, taking money out, paying a dividend, or whether he's covered for tax.",
+    input_schema: { type: "object", properties: {} },
   },
 ];
 
@@ -171,6 +185,14 @@ async function runTool(name: string, input: Record<string, unknown>): Promise<un
       .limit(limit);
     if (error) return { error: error.message };
     return data ?? [];
+  }
+
+  if (name === "financial_position") {
+    try {
+      return await getDividendHeadroom();
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Could not read financial position" };
+    }
   }
 
   return { error: `Unknown tool: ${name}` };
