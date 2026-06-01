@@ -7,8 +7,8 @@
 
 ## Right now
 
-- **Latest deploy (commit 66c8a35) building/live** at https://finance-hub-psi-khaki.vercel.app/. This session: categorisation automation overhaul — self-cleaning review queue, `/activity` review-&-undo page, and 86 learned vendor rules seeded from Richard's Monzo history (see "Recent ships"). Bank-txn categorisation now genuinely auto-files known suppliers and lets him review/correct via `/activity`.
-- **Verify-live TODO:** open `/review` (watch queue self-tidy via reconcile) + green "Auto-applied" stat → `/activity` (correct/undo works). Confirm seeded rules auto-book on next cron (08:00 UTC) or a manual "Run now".
+- **Live at commit e73b9d8** (https://finance-hub-psi-khaki.vercel.app/). **Auto-approve is the model now:** FreeAgent guesses every txn; we CONFIRM the confident+safe ones (PUT marked_for_review:false), HOLD the rest. First real run done: 2 approved (interest, Claude), 16 held, 0 errors; FA marked_for_review 26→23. Nightly cron `0 8 * * *` + "Approve now" button on home card.
+- **KNOWN GAP (next):** the `/review` "Approve" button still uses the OLD POST-new-explanation path (`/api/categorisation/approve`) — for an FA-guessed item that just no-ops as already-explained and does NOT clear marked_for_review. So manually approving a HELD item in-app doesn't truly confirm it in FA. Fix: make manual approve PUT-confirm the guess (and apply override category if changed). Until then, held items are confirmable in FreeAgent's own review tab.
 - **Auth model now: Supabase email+password.** Vercel Deployment Protection is OFF on production. User sent a password-recovery email; can also visit `/auth/set-password` directly while logged in. Long-lived Supabase session = no more lockouts.
 - **Receipts pipeline working end-to-end** — capture (camera + email), Claude extraction, dedup, auto-approve (manual or 30d cron), FA push as out-of-pocket Expense with correct sign + image attachment, learned vendor→category rules.
 - **Site-wide Butler chat** (floating yellow `?` bottom-right) — Claude with tools reading receipts/suppliers/categories/strategy.
