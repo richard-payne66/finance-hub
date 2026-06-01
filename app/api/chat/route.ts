@@ -44,6 +44,14 @@ take" = the safe_dividend figure (cash left after tax owed and a one-month
 buffer). Never guess these numbers — read them from the tool. If what he wants
 is below safe_dividend, the answer is yes; if above, say what IS safe instead.
 
+EXTRACTION WHAT-IFS: for "what if I take £X as a dividend", "how much tax on a
+£X dividend", or "dividend vs pension", call estimate_dividend_tax (it assumes
+the £12,570 salary unless told otherwise). Give the net in hand and the tax in
+plain English. For dividend-vs-pension: an employer pension contribution avoids
+ALL dividend tax and cuts corporation tax, but it's locked until age 57 — so it
+wins for SURPLUS he doesn't need now, while a dividend wins if he needs the cash
+today. Never compute tax yourself; use the tool.
+
 Knowledge below.
 
 ${BUSINESS_FACTS}
@@ -103,7 +111,66 @@ const TOOLS: Anthropic.Messages.Tool[] = [
       "Richard's live money position from FreeAgent: cash in the bank now, total tax owed (VAT + Corporation Tax + anything manual), a sensible one-month operating buffer, and the resulting amount he could SAFELY take out as a dividend right now (safe_dividend). Use this for ANY question about affording a purchase, taking money out, paying a dividend, or whether he's covered for tax.",
     input_schema: { type: "object", properties: {} },
   },
+  {
+    name: "estimate_dividend_tax",
+    description:
+      "Estimate the PERSONAL tax on taking a dividend, at 2026/27 UK rates (top-slice; assumes the usual £12,570 salary unless other_income is given). Use for 'what if I take £X as a dividend', 'how much tax on a £X dividend', and dividend-vs-pension comparisons. Returns gross, tax, net in hand, effective rate, and whether it crosses the 35.75% higher-rate band. Always use this instead of doing the maths yourself.",
+    input_schema: {
+      type: "object",
+      properties: {
+        gross_dividend: { type: "number", description: "Gross dividend to take, in £" },
+        other_income: { type: "number", description: "Other taxable income this year in £ (default 12570 = the usual salary)" },
+      },
+      required: ["gross_dividend"],
+    },
+  },
 ];
+
+// UK 2026/27 dividend-tax estimate (dividends taxed as the top slice of
+// income). Deterministic — the butler must call this, never compute tax in its
+// head. Personal allowance £12,570 (tapered above £100k); dividend allowance
+// £500 at 0%; rates 10.75% / 35.75% / 39.35%.
+function estimateDividendTax(grossDividend: number, otherIncome = 12570) {
+  const BASIC_TOP = 50270;
+  const HIGHER_TOP = 125140;
+  const ALLOWANCE = 500;
+  const total = otherIncome + grossDividend;
+  let pa = 12570;
+  if (total > 100000) pa = Math.max(0, 12570 - Math.floor((total - 100000) / 2));
+  const bands = [
+    { top: pa, rate: 0 },
+    { top: BASIC_TOP, rate: 0.1075 },
+    { top: HIGHER_TOP, rate: 0.3575 },
+    { top: Infinity, rate: 0.3935 },
+  ];
+  const hi = otherIncome + grossDividend;
+  let allowanceLeft = ALLOWANCE;
+  let tax = 0;
+  let prev = 0;
+  for (const b of bands) {
+    const segLo = Math.max(otherIncome, prev);
+    const segHi = Math.min(hi, b.top);
+    if (segHi > segLo) {
+      let amt = segHi - segLo;
+      const free = Math.min(amt, allowanceLeft);
+      allowanceLeft -= free;
+      amt -= free;
+      tax += amt * b.rate;
+    }
+    prev = b.top;
+    if (prev >= hi) break;
+  }
+  const taxR = Math.round(tax);
+  return {
+    gross_dividend: Math.round(grossDividend),
+    other_income: Math.round(otherIncome),
+    tax: taxR,
+    net_in_hand: Math.round(grossDividend - taxR),
+    effective_rate_pct: grossDividend > 0 ? Math.round((taxR / grossDividend) * 1000) / 10 : 0,
+    crosses_higher_rate: hi > BASIC_TOP,
+    assumptions: `UK 2026/27. Assumes other income £${Math.round(otherIncome)}. £500 dividend allowance; rates 10.75% / 35.75% / 39.35%. Excludes the corporation tax already paid before profits can be distributed.`,
+  };
+}
 
 // ── Tool implementations ────────────────────────────────────────────────────
 
@@ -193,6 +260,13 @@ async function runTool(name: string, input: Record<string, unknown>): Promise<un
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Could not read financial position" };
     }
+  }
+
+  if (name === "estimate_dividend_tax") {
+    const gross = Number(input.gross_dividend);
+    if (!Number.isFinite(gross) || gross < 0) return { error: "gross_dividend must be a positive number" };
+    const other = Number.isFinite(Number(input.other_income)) ? Number(input.other_income) : 12570;
+    return estimateDividendTax(gross, other);
   }
 
   return { error: `Unknown tool: ${name}` };

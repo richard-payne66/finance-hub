@@ -40,44 +40,50 @@ HMRC PAYMENT REFERENCE FORMAT
 `.trim();
 
 export const STRATEGY_BRIEF = `
-STRATEGY — TAX & EXTRACTION (from /strategy page)
+STRATEGY — TAX & EXTRACTION (2026/27)
 
-THE PICTURE IN ONE LINE
-Setup is mostly right. Biggest miss is the pension, but Richard can't afford
-to pay more in directly. Real play: shift personal costs onto the company
-(home office actual-cost, gift cards, EV later) — same lifestyle, less tax.
+KEY RATES 2026/27 (use the estimate_dividend_tax tool for actual figures —
+never compute dividend tax yourself):
+- Personal allowance £12,570; basic-rate ceiling £50,270 (frozen to 2031).
+- Dividend tax ROSE from 6 Apr 2026: 0% on the first £500, then 10.75% (basic),
+  35.75% (higher, above £50,270), 39.35% (additional, above £125,140).
+- Optimal director salary stays £12,570/yr (confirmed). No Employment Allowance
+  (sole director, no other staff), so the company pays ~£1,135 employer NI on
+  it — still cheaper than a lower salary thanks to corporation-tax relief.
+- Corporation tax: 19% to £50k profit, ~26.5% marginal £50k–£250k, 25% above.
 
-THE 6 LEVERS
+THE ONE-LINE PICTURE
+Setup is mostly right. The family commitment (~£50k/yr take-home) pushes the
+last slice of dividends into the 35.75% band. So: fund the family first, then
+route any SURPLUS into the pension (beats a higher-rate dividend roughly 2:1)
+rather than taking it as an expensive dividend.
 
-1. HOME OFFICE — DO NOW
-   Currently claiming £312/yr (£6/week flat rate). Switch to actual-cost
-   method: proportion of mortgage interest + council tax + utilities +
-   broadband + cleaning. Typical: £1,500-£3,000/yr. CT saved: £300-£700/yr.
-   Caveat: don't claim a room as "exclusively" for business — CGT trap.
+LEVERS
+1. HOME OFFICE — DO NOW. Switch the £6/week flat rate to actual-cost (a
+   proportion of mortgage interest, council tax, utilities, broadband).
+   ~£1,500-3,000/yr expense. Don't claim a room as "exclusively" business (CGT trap).
+2. TRIVIAL BENEFITS — DO NOW. Up to £300/yr in non-cash gifts, tax-free (each
+   ≤£50, max 6/yr). Currently £0.
+3. DIVIDENDS — the band above £50,270 is now 35.75%. Keep dividends in the
+   cheap 10.75% band where you can; route surplus to pension.
+4. SALARY — keep at £12,570 (confirmed optimal for 2026/27).
+5. SPOUSE/PARTNER — biggest potential lever IF a partner has little income:
+   a real salary for real work and/or shareholding uses their allowances and
+   the 10.75% band instead of Richard's 35.75%. Must be genuine (HMRC
+   settlements rules). One for the accountant.
+6. VAT — registration is mandatory now (turnover £112,948). On the Standard
+   scheme (reclaims input VAT); Flat Rate probably doesn't beat it — quick check.
+7. SMALL LEAKS — Wise/Revolut for forex; a CT reserve account to avoid
+   late-payment charges.
 
-2. TRIVIAL BENEFITS — DO NOW
-   Up to £300/yr in non-cash gifts from the company, tax-free. Each ≤£50,
-   max 6/year. Currently claiming £0. Free £75-150/yr in CT saved.
-
-3. DIVIDENDS — ASK ACCOUNTANT
-   Last FY £2,835 spilled into the higher-rate band (33.75%) = £957 wasted.
-   Stop at basic-rate ceiling if cashflow allows; route excess to pension.
-
-4. SALARY — ASK ACCOUNTANT
-   £12,570 salary may no longer be optimal post Apr-2025 NI changes
-   (threshold dropped to £5k, rate up to 15%). Model £5k vs £9.1k vs £12.57k.
-   Probably £500-£1,000/yr.
-
-5. VAT — ASK ACCOUNTANT
-   Currently Standard scheme. Worth reviewing Flat Rate Scheme (13% for
-   film/video production) given low input volume. £500-£2,000/yr potential.
-
-6. SMALL LEAKS — ASK ACCOUNTANT
-   Forex losses £400-£850/yr — use Wise/Revolut. Late-payment charges
-   £150/yr — set up CT reserve account. Check DLA balance.
+PENSION
+Vanguard SIPP, employer contributions ~£300/mo. Locked until 57, so only soak
+up genuine surplus. The Apr-2026 dividend rise makes pension clearly better than
+a higher-rate dividend for that surplus (£10k in pension keeps £10k; the same as
+a higher-rate dividend nets only ~£4,700 in hand).
 
 PARKED
-- EV through company — owns current car outright (petrol/diesel). Revisit
-  at car replacement. Biggest single lever (£5-8k/yr) but timing-locked.
+- EV through company — owns current car outright. Revisit at car replacement
+  (~£5-8k/yr, timing-locked).
 - Phone via company — Smarty £10/mo not worth switching.
 `.trim();

@@ -22,6 +22,7 @@ type Bill = { label: string; date: string; amount: number };
 const ASKS = [
   "Can I take £3,000 out this month?",
   "Can I afford a £2,000 camera through the company?",
+  "Dividend or pension for my next £10k?",
   "Am I set aside enough for my next tax bill?",
 ];
 

@@ -14,7 +14,8 @@ export function openButler(question?: string) {
 
 const SUGGESTIONS = [
   "Can I take £3,000 out this month?",
-  "Can I afford a £2,000 camera through the company?",
+  "What if I take £20,000 as a dividend this year?",
+  "Dividend or pension for my next £10k?",
   "Am I set aside enough for my next tax bill?",
   "How much have I spent on software this year?",
 ];
