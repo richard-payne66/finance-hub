@@ -1,6 +1,6 @@
 # Finance Hub — Live State
 
-> **Last updated:** 2026-05-29
+> **Last updated:** 2026-06-01
 > Paste this into a fresh `/clear`'d Claude session to resume with full context.
 
 ---
@@ -66,16 +66,11 @@ Richard Payne — sole director of Richard Payne LTD (film/animation production,
 
 ## Recent ships (newest first)
 
-1. `/auth/set-password` page + recovery-callback routing
-2. Email+password login (replacing magic-link-only)
-3. Butler chat (floating `?`, Claude + tools)
-4. Duplicate detection at intake + 52 historical dupes cleaned
-5. FA-aware DELETE (removes FA expense too)
-6. Sign-convention fix (FA gross_value negative for expenses) + 99-receipt backfill; apiSend handles empty 200 bodies
-7. Bulk-categorise + approve 99 receipts via user-confirmed mappings
-8. 90-day Gmail backfill (42 historical receipts; own-business invoices excluded)
-9. Brand favicon swap from Richard's .ico
-10. Bulk emerald → primary colour sweep
+1. **Monzo-seeded vendor rules (LIVE in prod DB now).** Mined the Monzo export sheet (3,275 txns) and seeded the learned-rules store from Richard's own Monzo categories — but ONLY the reliable, mappable ones. `category_rules` now has **86 rules** (was 25; +61 from `scripts/seed-monzo-rules.mjs` + 1 manual `plusnet`). Seeded: ~41 software/AI tools→Computer Software, ~20 transit→Travel, accountants→Accountancy Fees, Plusnet→Internet & Telephone (both `pnet4167773` + `plusnet` keys), SMARTY→Mobile Phone, Monzo Business Pro→Bank/Finance Charges, Google Workspace→Web Hosting. **Deliberately NOT seeded:** all meals/cafés/pubs (subsistence = case-by-case), hotels/Airbnb (business-vs-personal), Amazon/Apple/eBay/Cineworld/Lime/pots/transfers/"catrin probert" (mixed/personal). Deleted the bad `sq` rule. Seeded rules tagged `source:"monzo_seed"`. **Key insight:** description-keying is fragile — same merchant has multiple raw-description forms (Plusnet `PNET4167773-2` vs `PLUSNET PLC`; Uber `uber` vs `ubr`; Square merchants all prefix `SQ *`). Mitigated by (i) seeding every observed variant key and (ii) adding processor/noise tokens (sq, sumup, paypal, pending, zettle…) to `vendorKey` STOP_WORDS.
+2. **Self-cleaning queue + auto-file + review surface.** (a) `app/lib/queue-reconcile.ts` — on every `/review` open AND in the daily cron, `reconcileQueue()` checks each queued item LIVE against FA: items already explained/matched in FA are dropped; items matching a saved vendor rule are auto-booked to FA and removed (banner shows "✨ Tidied automatically"). (b) Dedup bug fixed (queued/skipped items no longer re-added each cron run); vendorKey strips titles/banking/processor noise. (c) NEW `/activity` page ("What I filed for you") lists everything auto-booked, newest first — each row can be re-categorised (PUTs new category to FA + re-teaches rule) or marked personal (DELETEs the FA explanation + forgets the rule). APIs: `/api/categorisation/activity` (GET), `/api/categorisation/correct` (POST). Home card "Auto-applied" stat now links to `/activity`. *Built, typechecks + builds clean — NOT yet committed/pushed.*
+3. `/auth/set-password` page + recovery-callback routing
+4. Email+password login (replacing magic-link-only)
+5. Butler chat (floating `?`, Claude + tools)
 
 ## Env vars in Vercel production
 
@@ -86,7 +81,7 @@ Richard Payne — sole director of Richard Payne LTD (film/animation production,
 
 ## Locked-in design decisions
 
-1. No Monzo direct integration — FA bank feed is the source of bank data.
+1. No Monzo direct integration as a *bank feed* — FA remains the source of bank data + the write target. (Nuance, 2026-06-01: a Monzo→Google Sheet live export exists and MAY be used as an *enrichment/hint* source — clean merchant names + Richard's own Monzo categories — not as a parallel bank feed. See Useful URLs.)
 2. OAuth state in BOTH cookie + Supabase.
 3. Auto-categorisation threshold 0.85 for silent FA push.
 4. AI bookkeeper learns vendor rules from approvals.
@@ -118,3 +113,4 @@ Richard Payne — sole director of Richard Payne LTD (film/animation production,
 - Admin: /api/admin/{audit-fa,find-dupes,clean-fa-orphans} · Migrations: /setup
 - Supabase project: jeifndupsazbuafwvnpn (org Richard_Payne_Supabase, Pro)
 - Repo: github.com/richard-payne66/finance-hub
+- **Monzo live export sheet** (read via Google Workspace MCP as info@richard-payne.com): `1p_lbpBf3HkAl7F03jvkTGsUMNfZ-K-_66sqBcN34bO8`, tab "Business Account Transactions" (~3,275 rows from Apr 2023). Cols: Transaction ID, Date, Time, Type, Name (clean merchant), Emoji, Category (Monzo's own), Amount, Currency, Notes/#tags, Address, Receipt, Description (raw), Category split.

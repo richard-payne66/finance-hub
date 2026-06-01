@@ -24,12 +24,29 @@ export type CategoryRule = {
 //   "AMAZON.CO.UK LONDON GBR/// £109" → "amazon"
 //   "Apple.com/Bill CORK IRL" → "apple"
 //   "TfL Travel Charge SW1H" → "tfl"
+const STOP_WORDS = new Set([
+  // generic noise
+  "the", "and", "ltd", "uk", "gbr", "usa", "irl", "com", "plc", "limited",
+  "inc", "llc", "intl", "international", "co",
+  // payment / banking noise
+  "payment", "transfer", "ref", "reference", "direct", "debit", "dd",
+  "card", "bank", "gbp", "eur", "usd", "from", "via", "bgc", "fpi", "fps",
+  // payment-processor prefixes + status noise — these hijack the first token
+  // (e.g. "SQ *MINCKA" → "mincka", "UBER * PENDING" → "uber"), and "sq" alone
+  // would collide across every Square merchant.
+  "sq", "sumup", "zettle", "izettle", "paypal", "pos", "pending", "www", "http", "https",
+  // personal titles — so "MR PETER HERON" keys on "peter", not "mr"
+  "mr", "mrs", "ms", "miss", "mx", "dr", "sir", "prof",
+]);
+
 export function vendorKey(description: string): string {
   return description
     .toLowerCase()
     .replace(/[^a-z0-9 .]/g, " ")
     .split(/[ .]+/)
-    .filter((w) => w.length >= 2 && !["the", "and", "ltd", "uk", "gbr", "usa", "irl", "com"].includes(w))
+    // keep words that are ≥2 chars, contain a letter (drop pure numbers/dates),
+    // and aren't generic banking/title noise
+    .filter((w) => w.length >= 2 && /[a-z]/.test(w) && !STOP_WORDS.has(w))
     .slice(0, 1)
     .join("")
     .trim();
@@ -78,6 +95,16 @@ export async function upsertRule(args: {
   // Cap at 200 most-recently-used rules
   rules.sort((a, b) => b.last_used.localeCompare(a.last_used));
   await saveRules(rules.slice(0, 200));
+}
+
+// Forget the rule for a vendor — used when the user corrects an auto-filed
+// transaction to "personal", so we don't keep mis-filing that vendor.
+export async function removeRule(description: string): Promise<void> {
+  const vendor = vendorKey(description);
+  if (!vendor) return;
+  const rules = await loadRules();
+  const next = rules.filter((r) => r.vendor !== vendor);
+  if (next.length !== rules.length) await saveRules(next);
 }
 
 export async function lookupRule(description: string): Promise<CategoryRule | null> {

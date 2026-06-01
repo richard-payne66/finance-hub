@@ -84,7 +84,13 @@ export default function AutoCategoriseCard() {
       )}
 
       <div className="grid grid-cols-3 gap-3 mb-4">
-        <Stat label="Auto-applied" value={s.auto_applied} accent="emerald" />
+        <ClickableStat
+          label="Auto-applied"
+          value={s.auto_applied}
+          accent="emerald"
+          href="/activity"
+          sublabel={s.auto_applied > 0 ? "tap to review" : undefined}
+        />
         <ClickableStat
           label="Need a look"
           value={s.queued}

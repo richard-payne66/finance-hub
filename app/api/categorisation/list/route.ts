@@ -2,15 +2,24 @@ import { NextResponse } from "next/server";
 import { loadAuditLog } from "@/app/lib/audit-log";
 import { getCategories } from "@/app/lib/fa-categories";
 import { loadRules } from "@/app/lib/category-rules";
+import { reconcileQueue } from "@/app/lib/queue-reconcile";
 import { errorResponse } from "@/app/lib/api-helpers";
 
+export const maxDuration = 120;
+
 // Returns:
-//   queue:      AuditEntry[] currently action=queued_for_review
+//   queue:      AuditEntry[] currently action=queued_for_review,
+//               AFTER reconciling against FreeAgent (drops items already
+//               handled in FA, auto-applies learned-rule matches).
 //   categories: ALL FA categories, each annotated with usage_count
 //               (derived from the audit log + learned rules so the
 //               picker can rank/filter by what the user actually uses)
+//   reconcile:  { resolved, auto_applied, checked } for a small banner
 export async function GET() {
   try {
+    // Self-clean the queue first, then read the (now fresh) log for usage.
+    const recon = await reconcileQueue().catch(() => null);
+
     const [log, cats, rules] = await Promise.all([
       loadAuditLog(),
       getCategories().catch(() => []),
@@ -36,9 +45,15 @@ export async function GET() {
       usage_count: usage.get(c.url) ?? 0,
     }));
 
-    const queue = log.filter((e) => e.action === "queued_for_review");
+    const queue = recon?.queue ?? log.filter((e) => e.action === "queued_for_review");
 
-    return NextResponse.json({ queue, categories: annotated });
+    return NextResponse.json({
+      queue,
+      categories: annotated,
+      reconcile: recon
+        ? { resolved: recon.resolved, auto_applied: recon.auto_applied, checked: recon.checked }
+        : null,
+    });
   } catch (err) {
     return errorResponse(err);
   }

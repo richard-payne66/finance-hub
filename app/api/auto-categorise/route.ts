@@ -151,13 +151,16 @@ export async function POST(req: Request) {
       loadAuditLog(),
     ]);
 
-    // Dedupe against the audit log: don't re-process transactions
-    // we've already successfully auto-applied OR pushed to FA.
-    // (FA's marked_for_review filter is eventually consistent and
-    // sometimes returns transactions we just explained.)
+    // Dedupe against the audit log: don't re-process any transaction we've
+    // already SEEN — whether we auto-applied it, queued it for review, or
+    // the user marked it personal/skip. Without this, FA's eventually-
+    // consistent marked_for_review filter keeps returning the same txns and
+    // we pile up duplicate queue entries (and skipped items reappear).
+    // Re-evaluation of queued items against newly-learned rules happens in
+    // reconcileQueue(), not by re-queuing here.
     const alreadyDone = new Set(
       recentLog
-        .filter((e) => e.action === "auto_applied")
+        .filter((e) => e.action !== "error")
         .map((e) => e.bank_transaction_url)
     );
 

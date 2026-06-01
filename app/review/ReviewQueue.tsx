@@ -22,6 +22,7 @@ export default function ReviewQueue() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
+  const [reconcile, setReconcile] = useState<{ resolved: number; auto_applied: number } | null>(null);
 
   function load() {
     setLoading(true);
@@ -30,6 +31,8 @@ export default function ReviewQueue() {
       .then((j) => {
         setQueue(j.queue ?? []);
         setCategories(j.categories ?? []);
+        const r = j.reconcile;
+        setReconcile(r && (r.resolved > 0 || r.auto_applied > 0) ? r : null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -92,20 +95,34 @@ export default function ReviewQueue() {
   if (loading) {
     return <p className="text-sm text-muted/60">Loading…</p>;
   }
+  const reconcileNote = reconcile ? (
+    <p className="text-xs text-primary/80 mb-4 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
+      ✨ Tidied automatically:
+      {reconcile.auto_applied > 0 && ` ${reconcile.auto_applied} booked to FreeAgent from saved rules`}
+      {reconcile.auto_applied > 0 && reconcile.resolved > 0 && " ·"}
+      {reconcile.resolved > 0 && ` ${reconcile.resolved} already handled in FreeAgent, cleared`}
+      .
+    </p>
+  ) : null;
+
   if (queue.length === 0) {
     return (
-      <div className="bg-surface border border-primary/20 rounded-2xl p-8 text-center">
-        <p className="text-3xl mb-2">✓</p>
-        <p className="text-sm font-bold text-primary">Queue empty</p>
-        <p className="text-xs text-muted/60 mt-2">
-          Nothing waiting for review. The AI bookkeeper is up to date.
-        </p>
+      <div>
+        {reconcileNote}
+        <div className="bg-surface border border-primary/20 rounded-2xl p-8 text-center">
+          <p className="text-3xl mb-2">✓</p>
+          <p className="text-sm font-bold text-primary">Queue empty</p>
+          <p className="text-xs text-muted/60 mt-2">
+            Nothing waiting for review. The AI bookkeeper is up to date.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
+      {reconcileNote}
       <div className="flex items-center justify-between gap-3 mb-4">
         <input
           type="text"
