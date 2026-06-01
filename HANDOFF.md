@@ -112,6 +112,74 @@
 
 ---
 
+## HANDOFF — 1 June 2026, bank-txn automation session
+
+**Current task**
+- Just finished wiring manual `/review` Approve button to PUT-confirm FA guesses (deployed, live).
+
+**Done this session**
+- `app/lib/queue-reconcile.ts` — self-cleaning review queue; checks each queued item live against FA on `/review` open and nightly cron.
+- Fixed dedup bug: auto-categorise now skips ALL seen txns (not just auto_applied), so queued/skipped items stop reappearing.
+- `app/activity/` page + `app/api/categorisation/activity/` — "What I filed for you" list with re-categorise + mark-personal.
+- `app/api/categorisation/correct/` — PUT-updates FA explanation + re-teaches rule; DELETE for mark-personal.
+- `app/lib/category-rules.ts` — vendorKey now strips payment-processor prefixes (sq, sumup, paypal, pending…) and personal titles (mr, mrs…).
+- Monzo export sheet mined (3,275 txns); 61 vendor rules seeded via `scripts/seed-monzo-rules.mjs`. Rules total now 84 (removed bad `monzo` + `google` collision keys post-analysis).
+- Discovered FA pre-guesses every txn (`marked_for_review:true`, `guess_rule_name`); pivot from POST-new to PUT-confirm model.
+- `app/lib/auto-approve.ts` `autoApproveGuesses()` — confirms FA's confident guesses; holds meals/entertaining/over-£350/low-confidence for human.
+- `app/api/approve-guesses/` (POST manual) + `app/api/cron/approve-guesses/` (nightly) — replaced dead auto-categorise cron.
+- `middleware.ts` — exempted `/api/cron/*` from session gate; this is why ALL crons were silently failing before.
+- Set `CRON_SECRET` in Vercel production (was missing).
+- `app/api/categorisation/approve/` rewritten — PUT-confirms existing FA guess; falls back to POST only for blank txns.
+- `app/api/categorisation/correct/` updated — also clears `marked_for_review` on re-categorise.
+- First real auto-approve run: 2 approved (bank interest, Claude sub), 16 held, 0 errors. FA review count 26→23.
+- All deployed; latest commit `b33eb21`.
+
+**Next step**
+1. Open `/review` — approve the 16 held items (Leipzig meals, Golden Wolf £6,480, HMRC items) using the now-working Approve button.
+2. For the Leipzig trip — decide if those meals (Gastrobüro RBA etc.) are allowable subsistence; if yes, approve; if personal, mark personal.
+3. For Golden Wolf £6,480 — verify it matched to the correct FA invoice, then approve.
+4. Consider cleaning remaining collision-prone rule keys: `sn`, `cs`, `fs`, `dri`, `mid`, `2co`, `station` (short/code-like, may grab wrong txns).
+5. Watch the 08:00 UTC cron tomorrow — confirm it runs and approves new items automatically.
+
+**Key decisions made**
+- Model is now: FA guesses → we confirm confident/safe ones; hold judgement calls. Never invent/override categories.
+- Auto-approve ceiling: £350. Hold categories: Accommodation and Meals, Business Entertaining, Staff Entertaining, Sundries.
+- Trusted FA guess sources: `invoice_rule`, `bill_rule`, `similar_explained_transactions_rule`. `banquo` not trusted alone.
+- Monzo categories good for ~70% match after removing collision rules; seeded selectively (no meals, no General, no Amazon/Apple).
+- All crons now work (middleware fix + CRON_SECRET set). Cron schedule: approve-guesses `0 8 * * *`, gmail-receipts `0 6 * * *`, receipts-auto-approve `0 7 * * *`.
+
+**Gotchas**
+- FA pre-guesses every bank-feed txn with `marked_for_review:true` — never treat "has an explanation" as confirmed; check `marked_for_review === false`.
+- POSTing a new explanation onto an FA-guessed txn → 422 "already explained"; always PUT-confirm instead.
+- Monzo sheet keyed on raw Description (not Name); same merchant has multiple description forms (Plusnet: `PNET4167773-2` + `PLUSNET PLC`, Uber: `uber` + `ubr`).
+- `vendorKey` STOP_WORDS must include payment-processor prefixes or `SQ *MINCKA` → key `sq` (collides with all Square merchants).
+- `google` and `monzo` vendorKey rules were poison (grabbed Google credits, Monzo internal transfers); already deleted.
+- CRON_SECRET now set — don't remove it. All cron routes check it if present.
+- `/activity` "Auto-applied" shows txns we confirmed; `/review` shows held items needing a tap.
+
+**Files touched**
+- `app/lib/queue-reconcile.ts` — new; self-cleaning queue engine.
+- `app/lib/auto-approve.ts` — new; confirms FA guesses, holds judgement calls.
+- `app/lib/category-rules.ts` — vendorKey STOP_WORDS expanded; `removeRule` added.
+- `app/api/approve-guesses/route.ts` — new; manual trigger for auto-approve.
+- `app/api/cron/approve-guesses/route.ts` — new; nightly cron.
+- `app/api/categorisation/approve/route.ts` — rewritten; PUT-confirm model.
+- `app/api/categorisation/correct/route.ts` — updated; clears marked_for_review.
+- `app/api/categorisation/activity/route.ts` — new; activity feed API.
+- `app/api/categorisation/list/route.ts` — wired in reconcileQueue on load.
+- `app/api/auto-categorise/route.ts` — dedup fix (skip all seen, not just auto_applied).
+- `app/api/cron/auto-categorise/route.ts` — replaced by approve-guesses cron.
+- `app/activity/page.tsx` + `app/activity/ActivityView.tsx` — new; review page.
+- `app/components/AutoCategoriseCard.tsx` — button now "Approve now" → `/api/approve-guesses`.
+- `app/review/ReviewQueue.tsx` — reconcile banner added.
+- `middleware.ts` — `/api/cron/` added to PUBLIC_PATHS.
+- `vercel.json` — cron path updated to approve-guesses.
+- `scripts/seed-monzo-rules.mjs` — one-off Monzo seed script (keep for reference).
+- `scripts/compare-guesses.mjs` — diagnostic; FA-guess vs rules comparison (read-only).
+- `LIVE-STATE.md` — fully updated.
+
+---
+
 ## HANDOFF — 3 May 2026, scaffold session
 
 **Current task**
