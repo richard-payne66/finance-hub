@@ -150,6 +150,7 @@ export async function GET() {
     for (let i = 0; i < outgoings.length; i++) {
       for (let j = i + 1; j < outgoings.length; j++) {
         const a = outgoings[i], b = outgoings[j];
+        if (a._abs < 25) continue; // ignore trivial recurring small charges (£0.01, £3.99…) — noise, not real duplicates
         if (Math.abs(a._abs - b._abs) > 0.01) continue;
         if (daysBetween(a.dated_on, b.dated_on) > 7) continue;
         if (normaliseSupplier(a.description).split(" ")[0] !== normaliseSupplier(b.description).split(" ")[0]) continue;
