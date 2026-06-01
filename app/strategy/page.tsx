@@ -11,7 +11,7 @@ import Link from "next/link";
 
 export const dynamic = "force-static";
 
-const LAST_UPDATED = "2026-05-25";
+const LAST_UPDATED = "2026-06-01";
 
 function renderInline(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -61,36 +61,48 @@ const LEVERS: Lever[] = [
   },
   {
     status: "ask",
-    title: "Dividends — stop at the basic-rate ceiling",
-    what: "Last year £2,835 of your dividends crossed into the 33.75% band. You paid £957 in tax on that chunk. If you'd stopped at the basic-rate ceiling, you'd save the £957 — but you'd have £1,878 less in your pocket that year.",
+    title: "Dividends — the band above £50,270 just got pricier",
+    what: "Dividend tax rose 2 points in April 2026. Below £50,270 of total income you now pay 10.75% on dividends; above it, 35.75% (it was 33.75%). Your family commitment of ~£50k take-home pushes the last slice of your dividends into that higher band — the slice that just got more expensive.",
     how: [
-      "**Short version:** yes, this means less monthly take-home.",
-      "**The smarter way:** instead of taking the higher-rate dividend, the company pays the same amount into your pension as an employer contribution. No income tax, no dividend tax, no NI.",
-      "Trade-off: same total money, but routed via pension → you can't touch it until 55-57+.",
-      "Only do this if your monthly budget can absorb the cashflow hit.",
+      "**The cheap zone:** salary £12,570 + dividends up to the £50,270 ceiling lands roughly £46k in your pocket for about £4,000 of tax.",
+      "**The expensive bit:** the few thousand above that, to clear your £50k need, is taxed at 35.75%.",
+      "**The smarter route for any surplus beyond what the family needs:** the company pays it into your pension instead of you taking a 35.75% dividend — no dividend tax, no NI, and it cuts corporation tax. £10k into pension keeps £10k; the same £10k as a higher-rate dividend leaves you only ~£4,700.",
+      "Trade-off: pension money is locked until 57, so only route the genuine surplus there.",
     ],
-    worth: "£957/yr saved if you can afford the cashflow swap.",
+    worth: "Hundreds to ~£1k+/yr by keeping surplus out of the 35.75% band.",
   },
   {
     status: "ask",
-    title: "Salary — needs re-modelling",
-    what: "Your salary has been £12,570 for years. That made sense before April 2025, but employer NI rules changed (threshold dropped to £5k, rate up to 15%). The new optimum could be £5k, £9.1k, or still £12.57k — depends on the maths.",
+    title: "Spouse / partner — the biggest lever, if it fits",
+    what: "Right now every pound runs through you, so it all stacks against your one set of allowances and tax bands — which is what forces you into the 35.75% dividend band. If you have a spouse or partner with little income of their own, splitting income across two people is potentially the single biggest saving available to you.",
     how: [
-      "Ask the new accountant to model the three options for 2026-27.",
-      "Pick the cheapest.",
-      "Update the payroll.",
+      "If they genuinely help in the business, a real salary for real work is a company expense.",
+      "Making them a shareholder lets dividends be paid to them too — using their personal allowance, their £500 dividend allowance, and their basic-rate band at 10.75% instead of your 35.75%.",
+      "**It has to be genuine** — real shares, real involvement — not a paper exercise. HMRC has 'settlements' rules for arrangements that exist only to save tax. So this is a conversation to have with the accountant, not a switch to flip.",
     ],
-    worth: "Probably £500–£1,000/yr.",
+    worth: "Potentially £1,000s/yr — the biggest single item here if your situation fits.",
+  },
+  {
+    status: "do-now",
+    title: "Salary — keep it at £12,570",
+    what: "You've worried this needs changing since the April 2025 employer-NI shake-up (threshold dropped to £5k, rate up to 15%). Good news: £12,570 (about £1,048/month) is still the sweet spot for 2026/27. The corporation-tax relief on the salary outweighs the small bit of employer NI it triggers (~£1,135/yr), so a lower salary would actually cost you more overall.",
+    how: [
+      "Leave the salary at £12,570/yr — no change needed.",
+      "You can't claim the Employment Allowance (not available to a sole director with no other staff), so the company does pay a little employer NI — that's expected and still the cheaper option.",
+      "Just confirm payroll is running at this level for 2026/27.",
+    ],
+    worth: "Already optimal — saves ~£500–£1,000/yr vs dropping the salary.",
   },
   {
     status: "ask",
-    title: "VAT — is registration still right?",
-    what: "You're VAT-registered (turnover £88k, just below the £90k threshold = voluntary registration). Worth asking two questions.",
+    title: "VAT — Standard vs Flat Rate Scheme",
+    what: "Your turnover is now £112,948 — above the £90k threshold — so registration is mandatory; deregistering isn't an option any more. You're on the Standard scheme (you reclaim the VAT on your costs). The one open question is whether the Flat Rate Scheme would beat it.",
     how: [
-      "**Should you stay registered?** If your clients are VAT-registered businesses → they don't care → keep it (so you can reclaim VAT on costs). If clients are individuals or small businesses → being registered makes you 20% more expensive than non-registered competitors → maybe deregister.",
-      "**Are you on the right scheme?** You're probably on standard. The Flat Rate Scheme (FRS) can be more profitable for service businesses with low costs — you charge 20%, pay HMRC a lower flat % (e.g. 14.5%), keep the difference.",
+      "**Standard (what you're on):** charge 20%, reclaim VAT on your expenses. Wins if you have decent VAT-able costs.",
+      "**Flat Rate Scheme:** charge 20% but pay HMRC a lower flat % and can't reclaim input VAT (except big one-off equipment). Wins for service businesses with very low costs.",
+      "Ask the accountant to compare the two on your real numbers — with the software/subscription VAT you reclaim, Standard probably still wins, but it's a five-minute check.",
     ],
-    worth: "£500–£2,000/yr depending on the answer.",
+    worth: "£0–£1,500/yr — likely confirms Standard is right.",
   },
   {
     status: "ask",
@@ -134,7 +146,7 @@ const PENSION: { heading: string; body: string }[] = [
   },
   {
     heading: "The honest take on contributing more",
-    body: "On paper there's £100k+ of unused 'carry-forward' allowance sitting there. In practice, you can't afford to put more in — family expenses eat the take-home. So that's parked.",
+    body: "On paper there's £100k+ of unused 'carry-forward' allowance sitting there. In practice, you can't afford to put much more in directly — family expenses eat the take-home. **But** April 2026's dividend-tax rise sharpened the case for any surplus: above the £50,270 ceiling, a pension contribution beats a dividend by roughly two-to-one. So the rule is simple — fund the family first, and steer anything left over into the pension rather than a 35.75% dividend.",
   },
   {
     heading: "How to actually raise contributions over time",
@@ -155,7 +167,7 @@ const QUESTIONS: string[] = [
   "Home office — switch to actual-cost method. What's the right proportion for me, and can we backdate FY26?",
   "Trivial benefits — confirm I can claim £300/yr in gift cards and how to record them.",
   "VAT — should I stay registered? Standard vs Flat Rate Scheme — which wins for my client mix?",
-  "Salary — model £5k vs £9.1k vs £12.57k for 2026-27 under the new NI rules.",
+  "Salary — confirm £12,570 is still the optimal level for 2026/27 (I believe it is, given no Employment Allowance).",
   "Dividend planning — what's the right strategy if we want to stop at the basic-rate ceiling?",
   "Pension — what's a realistic 1–2 year plan to nudge contributions above £300/month?",
   "Spouse / share structure — am I missing income-shifting opportunities?",
@@ -239,7 +251,23 @@ export default function StrategyPage() {
         </p>
       </section>
 
-      {/* 6 levers */}
+      {/* What changed in April 2026 */}
+      <section className="bg-amber-500/[0.06] border border-amber-500/25 rounded-2xl px-5 sm:px-7 py-6 mb-8">
+        <p className="text-[11px] font-black uppercase tracking-widest text-amber-400 mb-3">
+          What changed in April 2026
+        </p>
+        <p className="text-[15px] sm:text-[16px] text-foreground/90 leading-relaxed">
+          Dividend tax went up 2 points. Below £50,270 of income you now pay{" "}
+          <strong className="text-foreground/95">10.75%</strong> on dividends (was 8.75%); above it,{" "}
+          <strong className="text-foreground/95">35.75%</strong> (was 33.75%). Your £12,570 salary is still
+          the right level. The practical upshot: getting to about £46k in your pocket stays cheap, but the
+          last stretch up to your ~£50k family need is taxed at 35.75% — so any money beyond what the family
+          needs is far better off going into your <strong className="text-foreground/95">pension</strong> than
+          taken as a higher-rate dividend.
+        </p>
+      </section>
+
+      {/* the levers */}
       <section className="mb-8">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4">
           The list — what&apos;s worth doing

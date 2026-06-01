@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import CaughtUpBanner from "./components/CaughtUpBanner";
 import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
 import DataHealthPanel from "./components/DataHealthPanel";
@@ -36,6 +37,9 @@ export default function Home() {
           </Link>
         </div>
       </header>
+
+      {/* The one calm answer at the top: is anything waiting on you? */}
+      <CaughtUpBanner />
 
       {/* HERO: the actionable list of ways to save money — Richard's goal */}
       <div className="mb-6">

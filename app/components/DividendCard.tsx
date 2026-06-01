@@ -6,13 +6,14 @@ import type { DividendHeadroom } from "@/app/api/dividend-headroom/route";
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 const GBP_PRECISE = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 
-// Tax-year-25/26 thresholds. Pinned here so the strategy maths is
+// Tax-year 2026/27 thresholds. Pinned here so the strategy maths is
 // transparent and editable when bands change.
+// NOTE: dividend tax ROSE +2 points from 6 April 2026 (Autumn 2025 Budget).
 const PERSONAL_ALLOWANCE = 12570;
 const DIVIDEND_ALLOWANCE = 500;
-const BASIC_RATE_END = 50270;          // top of basic-rate band
-const DIVIDEND_RATE_BASIC = 0.0875;    // 8.75%
-const DIVIDEND_RATE_HIGHER = 0.3375;   // 33.75%
+const BASIC_RATE_END = 50270;          // top of basic-rate band (frozen to 2031)
+const DIVIDEND_RATE_BASIC = 0.1075;    // 10.75% (was 8.75% pre-Apr-2026)
+const DIVIDEND_RATE_HIGHER = 0.3575;   // 35.75% (was 33.75% pre-Apr-2026)
 const RECOMMENDED_SALARY = PERSONAL_ALLOWANCE; // £12,570/yr = max no-tax salary
 
 export default function DividendCard() {
@@ -119,7 +120,7 @@ export default function DividendCard() {
           <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
             <p className="text-[10px] uppercase tracking-widest text-amber-400 font-bold mb-1">📝 Don&apos;t skip</p>
             <p className="text-[11px] text-muted/70">
-              Every dividend needs a <strong>dividend voucher</strong> (date, amount, shareholder). Without one HMRC can treat it as a director&apos;s loan — taxable + 33.75% s455 charge.
+              Every dividend needs a <strong>dividend voucher</strong> (date, amount, shareholder). Without one HMRC can treat it as a director&apos;s loan — taxable + 35.75% s455 charge.
             </p>
           </div>
 
@@ -131,7 +132,8 @@ export default function DividendCard() {
           </div>
 
           <p className="text-[10px] text-muted/40 italic">
-            Bands shown are 25/26. Ask your accountant before changing salary or starting pension.
+            Figures use 2026/27 bands. Dividend tax rose ~2 points in April 2026 (now 10.75% basic,
+            35.75% higher). Ask your accountant before changing salary or starting a pension.
           </p>
         </div>
       )}
