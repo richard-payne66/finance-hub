@@ -62,7 +62,7 @@ export async function GET() {
     const hmrcRe = /hmrc|cumbernauld|shipley|gov\.?uk|revenue|vat|paye|corporation tax|self assessment/i;
     const payments: Array<{ date: string; amount: number; description: string; bank: string; explained: boolean; url: string }> = [];
     for (const b of business) {
-      for (let page = 1; page <= 12; page++) {
+      for (let page = 1; page <= 40; page++) {
         const r = await faApi<{ bank_transactions: FaTxn[] }>(
           `/bank_transactions?bank_account=${encodeURIComponent(b.url)}&per_page=100&page=${page}`
         );
@@ -89,7 +89,7 @@ export async function GET() {
     const unpaid = [...unpaidVat, ...unpaidCt];
     const matches = unpaid.map((u) => {
       const cands = payments.filter(
-        (p) => Math.abs(Math.abs(p.amount) - Math.abs(u.amount)) <= 1 && (!u.due_on || daysApart(p.date, u.due_on) <= 75)
+        (p) => Math.abs(Math.abs(p.amount) - Math.abs(u.amount)) <= 20 && (!u.due_on || daysApart(p.date, u.due_on) <= 110)
       );
       return { ...u, candidate_payments: cands };
     });
