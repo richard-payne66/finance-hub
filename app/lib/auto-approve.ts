@@ -83,9 +83,14 @@ export async function autoApproveGuesses(): Promise<AutoApproveResult> {
   const catByUrl = new Map(cats.map((c) => [c.url, c.description]));
   const ruleByVendor = new Map(rules.map((r) => [r.vendor, r]));
 
-  // Don't touch transactions we've already approved or the user marked personal.
+  // The source of truth for "needs approving" is FreeAgent's own
+  // marked_for_review state (handled per-txn below via the guessed
+  // explanation's marked_for_review flag) — NOT our audit log, which can
+  // wrongly say "auto_applied" for txns a past POST only no-op'd. The ONLY
+  // thing we honour from the log is an explicit "mark personal" so we never
+  // auto-approve something the user has rejected.
   const terminal = new Set(
-    log.filter((e) => (e.action === "auto_applied" && e.fa_explanation_url) || e.action === "skipped_personal").map((e) => e.bank_transaction_url)
+    log.filter((e) => e.action === "skipped_personal").map((e) => e.bank_transaction_url)
   );
 
   const result: AutoApproveResult = { approved: 0, held: 0, skipped: 0, errors: 0, details: [] };
