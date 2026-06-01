@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/auto-categorise",
+      "path": "/api/cron/approve-guesses",
       "schedule": "0 8 * * *"
     },
     {

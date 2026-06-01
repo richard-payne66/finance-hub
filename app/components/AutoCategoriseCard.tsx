@@ -28,14 +28,13 @@ export default function AutoCategoriseCard() {
     setRunning(true);
     setRunResult(null);
     try {
-      const r = await fetch("/api/auto-categorise", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 50 }),
-      });
+      // Confirm FreeAgent's confident guesses; hold the judgement calls.
+      const r = await fetch("/api/approve-guesses", { method: "POST" });
       const j = await r.json();
       if (r.ok) {
-        setRunResult(`Processed ${j.processed} · auto-applied ${j.auto_applied} · queued ${j.queued}${j.errors > 0 ? ` · ${j.errors} errors` : ""}`);
+        setRunResult(
+          `Approved ${j.approved} · held ${j.held} for your review${j.errors > 0 ? ` · ${j.errors} errors` : ""}`
+        );
         load();
       } else {
         setRunResult(`Error: ${j.error ?? "unknown"}`);
@@ -67,7 +66,7 @@ export default function AutoCategoriseCard() {
             🤖 Auto bookkeeping
           </p>
           <p className="text-[10px] text-muted/50 mt-0.5">
-            Categorises new transactions daily · biased for tax efficiency
+            Approves FreeAgent&apos;s confident guesses · holds the judgement calls
           </p>
         </div>
         <button
@@ -75,7 +74,7 @@ export default function AutoCategoriseCard() {
           disabled={running}
           className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full bg-primary text-background hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
         >
-          {running ? "Running…" : "Run now"}
+          {running ? "Approving…" : "Approve now"}
         </button>
       </div>
 

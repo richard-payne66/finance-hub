@@ -4,7 +4,11 @@ import type { NextRequest } from "next/server";
 
 // Paths that never require a session.
 // /share/ is the accountant-facing read-only page — token-gated at the page level.
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/health", "/share/"];
+// /api/cron/ runs unattended (Vercel cron) — guarded by CRON_SECRET in each
+// route, NOT by a session, so it must bypass the Supabase gate here. (Without
+// this, cron requests have no session cookie and get 302'd to /login — which
+// is why the nightly crons never actually ran.)
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/api/health", "/api/cron/", "/share/"];
 
 // Paths that can bypass session auth if a valid x-api-key header is present.
 const API_KEY_PATHS = ["/api/process-receipt"];
