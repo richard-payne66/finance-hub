@@ -88,8 +88,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Also clear marked_for_review so a guessed explanation is fully
+      // confirmed in FA (not just re-categorised while still "awaiting approval").
       await apiSend(explanationUrl, "PUT", {
-        bank_transaction_explanation: { category: newCategory },
+        bank_transaction_explanation: { category: newCategory, marked_for_review: false },
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
