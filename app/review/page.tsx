@@ -1,23 +1,7 @@
-import Link from "next/link";
-import ReviewQueue from "./ReviewQueue";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
+// Merged into the unified /bookkeeping page (the "Needs you" tab).
+// Kept as a redirect for old bookmarks and the home-card links.
 export default function ReviewPage() {
-  return (
-    <main className="min-h-screen px-4 sm:px-6 py-6 max-w-3xl mx-auto">
-      <header className="mb-6">
-        <Link href="/" className="text-[10px] uppercase tracking-widest text-muted/50 hover:text-foreground transition-colors">
-          ← Home
-        </Link>
-        <h1 className="text-2xl font-black tracking-tight text-foreground mt-2">
-          Review queue
-        </h1>
-        <p className="text-xs text-muted/60 mt-1">
-          Transactions the AI wasn&apos;t confident enough to file on its own. Approve, edit, or mark as personal.
-        </p>
-      </header>
-      <ReviewQueue />
-    </main>
-  );
+  redirect("/bookkeeping");
 }

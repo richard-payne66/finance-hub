@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import BacklogSection from "./components/BacklogSection";
 import HMRCPanel from "./components/HMRCPanel";
 import DataHealthPanel from "./components/DataHealthPanel";
@@ -9,6 +10,14 @@ import AnomaliesCard from "./components/AnomaliesCard";
 import DividendCard from "./components/DividendCard";
 import GmailQueueCard from "./components/GmailQueueCard";
 
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[9px] font-bold uppercase tracking-widest text-muted/40 px-1 mb-2 mt-1">
+      {children}
+    </p>
+  );
+}
+
 export default function Home() {
   return (
     <main className="min-h-screen px-4 sm:px-8 py-6 max-w-6xl mx-auto">
@@ -16,8 +25,8 @@ export default function Home() {
         <div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">FINANCE HUB</h1>
           <p className="text-xs text-muted/70 mt-1 max-w-md leading-relaxed">
-            Your safety net. So you don&apos;t have to <em>hope</em> your accountant got it
-            right — see for yourself everything is filed, paid, and on track.
+            Your safety net. Anything that needs <em>you</em> is up top — everything below
+            it, I&apos;m already handling. So you don&apos;t have to hope it got done.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -28,12 +37,13 @@ export default function Home() {
         </div>
       </header>
 
-      {/* HERO: the actionable list of ways to save money */}
-      <div className="mb-4">
+      {/* HERO: the actionable list of ways to save money — Richard's goal */}
+      <div className="mb-6">
         <OptimisationsPanel />
       </div>
 
-      {/* Upcoming HMRC bills (simple list, no projections) + quick capture */}
+      {/* ───────── YOUR MONEY: decisions + bills + what to pay yourself ───────── */}
+      <SectionLabel>Your money</SectionLabel>
       <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
           <ForecastPanel />
@@ -49,28 +59,26 @@ export default function Home() {
           <span className="text-[10px] text-muted/50">Tap to snap &amp; log</span>
         </Link>
       </div>
-
-      {/* Pay yourself */}
-      <div className="mb-4">
+      <div className="mb-6">
         <DividendCard />
       </div>
 
+      {/* ───────── WHAT I'M HANDLING: quiet reassurance, speaks up only if needed ───────── */}
+      <SectionLabel>What I&apos;m handling for you</SectionLabel>
       {/* Anomalies — quiet unless something is up */}
       <div className="mb-4">
         <AnomaliesCard />
       </div>
-
-      {/* Auto-categorisation activity — collapsed-feel card */}
+      {/* Auto-categorisation activity */}
       <div className="mb-4">
         <AutoCategoriseCard />
       </div>
-
       {/* Gmail queue — only renders if pending */}
-      <div className="mb-4">
+      <div className="mb-6">
         <GmailQueueCard />
       </div>
 
-      {/* Detailed breakdown — collapsed by default */}
+      {/* ───────── DETAIL ON DEMAND ───────── */}
       <details className="mb-4 group">
         <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-3 bg-surface border border-white/8 rounded-2xl hover:border-white/15 transition-colors">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
@@ -85,7 +93,19 @@ export default function Home() {
         </div>
       </details>
 
-      <BacklogSection />
+      {/* Notes & ideas — useful, but not something to look at every day */}
+      <details className="mb-4 group">
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-3 bg-surface border border-white/8 rounded-2xl hover:border-white/15 transition-colors">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+            Notes &amp; ideas
+          </span>
+          <span className="text-[10px] text-muted/40 font-mono group-open:hidden">Show ▾</span>
+          <span className="text-[10px] text-muted/40 font-mono hidden group-open:inline">Hide ▴</span>
+        </summary>
+        <div className="mt-4">
+          <BacklogSection />
+        </div>
+      </details>
     </main>
   );
 }

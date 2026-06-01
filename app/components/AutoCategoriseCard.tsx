@@ -87,14 +87,14 @@ export default function AutoCategoriseCard() {
           label="Auto-applied"
           value={s.auto_applied}
           accent="emerald"
-          href="/activity"
+          href="/bookkeeping"
           sublabel={s.auto_applied > 0 ? "tap to review" : undefined}
         />
         <ClickableStat
           label="Need a look"
           value={s.queued}
           accent={s.queued > 0 ? "amber" : "muted"}
-          href="/review"
+          href="/bookkeeping"
           sublabel={s.queued > 0 ? "tap to review" : undefined}
         />
         <Stat label="Skipped" value={s.skipped} accent="muted" sublabel="(personal)" />
