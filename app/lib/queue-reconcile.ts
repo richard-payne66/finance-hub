@@ -47,10 +47,20 @@ async function faTxnStatus(url: string, token: string): Promise<FaStatus> {
   const t = json?.bank_transaction;
   if (!t) return { status: "unknown" };
 
-  const explained =
-    Array.isArray(t.bank_transaction_explanations) &&
-    t.bank_transaction_explanations.length > 0;
-  if (explained) return { status: "explained" };
+  // IMPORTANT: FreeAgent pre-attaches a *guessed* explanation to
+  // marked-for-review transactions (it carries marked_for_review:true and a
+  // guess_rule_name). Those are NOT done — they're unconfirmed guesses the
+  // user still needs to review. Only treat a transaction as resolved when it
+  // has a CONFIRMED explanation (marked_for_review:false), e.g. one the user
+  // approved or that FA matched to an invoice/bill.
+  const exps = t.bank_transaction_explanations;
+  const confirmed =
+    Array.isArray(exps) &&
+    exps.some(
+      (e: unknown) =>
+        e != null && typeof e === "object" && (e as { marked_for_review?: boolean }).marked_for_review === false
+    );
+  if (confirmed) return { status: "explained" };
   if (!t.bank_account) return { status: "unknown" };
   return { status: "unexplained", bank_account: t.bank_account };
 }

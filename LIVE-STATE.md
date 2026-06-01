@@ -60,6 +60,8 @@ Richard Payne — sole director of Richard Payne LTD (film/animation production,
 
 ## Outstanding / known issues
 
+- 🚨 **BIG ONE — bank-txn categorisation model is wrong.** Discovered 2026-06-01: FreeAgent's OWN guess-rules already pre-explain EVERY marked-for-review transaction (explanation carries `marked_for_review:true` + `guess_rule_name`, txn `unexplained_amount:0`). Checked all 26 current marked-for-review: 0 blank, 26 FA-guessed, 0 confirmed. So our POST-new-explanation pipeline has nothing to safely file (POST onto an already-explained txn risks DOUBLE-BOOKING) and **cannot override FA's guesses** (POST → 422 already-explained). Real fix needed: pivot from "create explanations" to **confirm/correct FA's guesses** — i.e. PUT/update the existing explanation's category + clear marked_for_review, only where our high-confidence rule DISAGREES with FA's guess. Until then, "run now" does effectively nothing. Reconcile guess-detection bug fixed (see Recent ships) so the queue no longer silently clears FA-guessed items.
+- ⏳ Daily auto-categorise cron likely never actually runs: CRON_SECRET is NOT set in Vercel AND middleware gates `/api/cron/*` (no session → 302 /login). Confirm + fix (exempt cron path or set secret + bypass). Manual "Run now" works because the browser has a session.
 - ⏳ FY26 "Signed Accounts.pdf" on Desktop is macOS-sandbox-blocked — drag into Dropbox `My_Documents/Statutory_Accounts/` to read.
 - ⏳ `/receipts` list paginated at 100; older receipts truncated from view (still in DB). Consider pagination/limit bump.
 - ⏳ No supplier filter on `/receipts` — Butler chat `?supplier=X` links go to unfiltered list.
@@ -100,6 +102,7 @@ Richard Payne — sole director of Richard Payne LTD (film/animation production,
 - **FA gross_value: negative = expense.** Got it wrong once → 99-receipt backfill.
 - FA returns 200 empty body on DELETE — apiSend handles it (was throwing "Unexpected end of JSON input").
 - FA 422 "already explained" = treat as success.
+- **FA pre-guesses marked-for-review txns** — an explanation with `marked_for_review:true` + `guess_rule_name` is an UNCONFIRMED guess, NOT done. Only `marked_for_review:false` = truly confirmed. Never treat "has an explanation" as resolved.
 - FA categories come from `kv:fa_categories_cache`.
 - `outputFileTracingIncludes` in next.config.ts needed so migrations runner bundles `db/*.sql`.
 - macOS Sandbox blocks Bash reading Desktop files — drag into Dropbox first.
