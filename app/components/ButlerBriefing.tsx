@@ -126,9 +126,9 @@ export default function ButlerBriefing() {
       {/* Transparency: old "unpaid" tax FreeAgent never reconciled. */}
       {stale > 500 && (
         <p className="text-[12px] text-muted/55 leading-relaxed mt-2">
-          FreeAgent still shows <strong className="text-foreground/75">{GBP.format(stale)}</strong> of older VAT/Corporation
-          Tax as unpaid. If you&apos;ve already paid those (likely, by direct debit), mark them paid in FreeAgent so this stays
-          accurate — it&apos;s not counted against what&apos;s safe to take.
+          FreeAgent still shows <strong className="text-foreground/75">{GBP.format(stale)}</strong>{" "}
+          of older VAT/Corporation Tax as unpaid. If you&apos;ve already paid those (likely, by direct debit), mark them
+          paid in FreeAgent so this stays accurate — it&apos;s not counted against what&apos;s safe to take.
         </p>
       )}
 
