@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { DividendHeadroom } from "@/app/api/dividend-headroom/route";
 
 const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
@@ -137,6 +138,10 @@ export default function DividendCard() {
           </p>
         </div>
       )}
+
+      <Link href="/dividends" className="mt-4 block text-center text-[10px] font-bold uppercase tracking-widest text-primary/80 hover:text-primary">
+        Pay yourself a dividend &amp; get the voucher →
+      </Link>
     </div>
   );
 }
