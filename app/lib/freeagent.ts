@@ -110,7 +110,7 @@ export async function isConnected(): Promise<boolean> {
 
 // ---------- API calls ----------
 
-async function getValidToken(): Promise<string> {
+export async function getValidToken(): Promise<string> {
   const tokens = await loadTokens();
   if (!tokens) throw new Error("FreeAgent not connected.");
   if (tokens.expires_at - Date.now() < 60_000) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadAuditLog, type AuditEntry } from "@/app/lib/audit-log";
-import { loadTokens } from "@/app/lib/freeagent";
+import { getValidToken } from "@/app/lib/freeagent";
 import { getCategories } from "@/app/lib/fa-categories";
 import { upsertRule } from "@/app/lib/category-rules";
 import { db } from "@/app/lib/db";
@@ -123,8 +123,12 @@ export async function POST(req: NextRequest) {
     const categoryUrl = overrideCategory ?? entry.category_url;
     if (!categoryUrl) return NextResponse.json({ error: "no category to apply" }, { status: 400 });
 
-    const tokens = await loadTokens();
-    if (!tokens) return NextResponse.json({ error: "FreeAgent not connected" }, { status: 400 });
+    let token: string;
+    try {
+      token = await getValidToken(); // auto-refreshes if the access token has expired
+    } catch {
+      return NextResponse.json({ error: "FreeAgent not connected" }, { status: 400 });
+    }
 
     // Resolve category name for the override case.
     let categoryName = entry.category_name;
@@ -139,7 +143,7 @@ export async function POST(req: NextRequest) {
       dated_on: entry.txn_date,
       amount: entry.txn_amount,
       description: entry.txn_description,
-      token: tokens.access_token,
+      token,
     });
 
     if (outcome.kind === "error") {

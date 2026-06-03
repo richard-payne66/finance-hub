@@ -17,7 +17,7 @@
 // toward full automation.
 
 import { loadAuditLog, type AuditEntry } from "@/app/lib/audit-log";
-import { loadTokens } from "@/app/lib/freeagent";
+import { getValidToken } from "@/app/lib/freeagent";
 import { lookupRule } from "@/app/lib/category-rules";
 import { db } from "@/app/lib/db";
 
@@ -139,8 +139,10 @@ export async function reconcileQueue(opts?: { max?: number }): Promise<Reconcile
   const log = await loadAuditLog();
   const queued = log.filter((e) => e.action === "queued_for_review");
 
-  const tokens = await loadTokens();
-  if (!tokens) {
+  let token: string;
+  try {
+    token = await getValidToken(); // auto-refreshes if the access token has expired
+  } catch {
     // Can't talk to FA — just return the current queue untouched.
     return { queue: queued, resolved: 0, auto_applied: 0, checked: 0 };
   }
@@ -152,7 +154,7 @@ export async function reconcileQueue(opts?: { max?: number }): Promise<Reconcile
   let autoApplied = 0;
 
   await mapLimit(toCheck, 6, async (entry) => {
-    const st = await faTxnStatus(entry.bank_transaction_url, tokens.access_token);
+    const st = await faTxnStatus(entry.bank_transaction_url, token);
     const idx = log.findIndex((e) => e.id === entry.id);
     if (idx < 0) return;
 
@@ -179,7 +181,7 @@ export async function reconcileQueue(opts?: { max?: number }): Promise<Reconcile
       dated_on: entry.txn_date,
       amount: entry.txn_amount,
       description: entry.txn_description,
-      token: tokens.access_token,
+      token: token,
     });
     if (exUrl === null) return; // hard failure — keep for manual review
 

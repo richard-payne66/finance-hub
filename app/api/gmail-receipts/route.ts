@@ -14,7 +14,7 @@ import {
 } from "@/app/lib/google";
 import { extractReceipt } from "@/app/lib/claude-extract";
 import { isOwnBusiness } from "@/app/lib/own-business";
-import { api as faApi, isConnected as faIsConnected, loadTokens as faLoadTokens } from "@/app/lib/freeagent";
+import { api as faApi, isConnected as faIsConnected, getValidToken as faGetValidToken } from "@/app/lib/freeagent";
 import { getCategories, receiptRelevant } from "@/app/lib/fa-categories";
 import { lookupRule } from "@/app/lib/category-rules";
 import { findDuplicate } from "@/app/lib/receipt-dedupe";
@@ -184,13 +184,13 @@ async function attachToBankTxn(args: {
   contentBase64: string;
   contentType: string;
 }): Promise<string | null> {
-  const tokens = await faLoadTokens();
-  if (!tokens) return null;
+  let token: string;
+  try { token = await faGetValidToken(); } catch { return null; }
   try {
     const r = await fetch("https://api.freeagent.com/v2/attachments", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${tokens.access_token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
