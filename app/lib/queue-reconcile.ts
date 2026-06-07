@@ -17,7 +17,7 @@
 // toward full automation.
 
 import { loadAuditLog, AUDIT_LOG_KEY, type AuditEntry } from "@/app/lib/audit-log";
-import { getValidToken } from "@/app/lib/freeagent";
+import { getValidToken, faFetch } from "@/app/lib/freeagent";
 import { lookupRule } from "@/app/lib/category-rules";
 import { mutateKvJson } from "@/app/lib/kv";
 
@@ -30,7 +30,7 @@ type FaStatus =
 async function faTxnStatus(url: string, token: string): Promise<FaStatus> {
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await faFetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
@@ -88,7 +88,10 @@ async function applyExplanation(args: {
   };
   let r: Response;
   try {
-    r = await fetch("https://api.freeagent.com/v2/bank_transaction_explanations", {
+    // POST: faFetch only retries this on a 429 (rejected, never applied) —
+    // a 5xx/network failure is NOT retried, since the explanation may have
+    // landed and a retry would double-book.
+    r = await faFetch("https://api.freeagent.com/v2/bank_transaction_explanations", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${args.token}`,

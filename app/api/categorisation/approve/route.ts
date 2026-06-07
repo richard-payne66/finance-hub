@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadAuditLog, replaceAuditEntry, type AuditEntry } from "@/app/lib/audit-log";
-import { getValidToken } from "@/app/lib/freeagent";
+import { getValidToken, faFetch } from "@/app/lib/freeagent";
 import { getCategories } from "@/app/lib/fa-categories";
 import { upsertRule } from "@/app/lib/category-rules";
 
@@ -40,7 +40,7 @@ async function confirmOrCreate(args: {
   token: string;
 }): Promise<ConfirmOutcome> {
   // Fetch the full transaction to find any existing explanation.
-  const txnRes = await fetch(args.bank_transaction_url, {
+  const txnRes = await faFetch(args.bank_transaction_url, {
     headers: HEADERS(args.token),
   });
   if (!txnRes.ok) {
@@ -59,7 +59,7 @@ async function confirmOrCreate(args: {
   // ── PATH A: confirm/update the existing explanation ──
   if (existing?.url) {
     const expPath = existing.url.replace(FA_BASE, "");
-    const r = await fetch(`${FA_BASE}${expPath}`, {
+    const r = await faFetch(`${FA_BASE}${expPath}`, {
       method: "PUT",
       headers: HEADERS(args.token),
       body: JSON.stringify({
@@ -83,7 +83,9 @@ async function confirmOrCreate(args: {
   // ── PATH B: no existing explanation — create one ──
   const bankAccount = txn.bank_account;
   if (!bankAccount) return { kind: "error", body: "Transaction has no bank_account field" };
-  const r = await fetch(`${FA_BASE}/bank_transaction_explanations`, {
+  // POST: faFetch retries only on 429, never on 5xx/network — the 422
+  // "already explained" path below stays our guard against duplicates.
+  const r = await faFetch(`${FA_BASE}/bank_transaction_explanations`, {
     method: "POST",
     headers: HEADERS(args.token),
     body: JSON.stringify({

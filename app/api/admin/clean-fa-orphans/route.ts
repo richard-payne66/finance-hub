@@ -53,8 +53,13 @@ async function findOrphans(): Promise<FaExpenseRow[]> {
   const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
   return expenses.filter((e) => {
     if (linkedUrls.has(e.url)) return false;
-    if (!e.dated_on) return true; // include unknowns
-    return new Date(e.dated_on).getTime() > cutoff;
+    // Conservative for a destructive op: an expense with no/invalid date is
+    // NOT treated as an orphan — better to leave it than risk deleting real
+    // accounting data we can't date-check.
+    if (!e.dated_on) return false;
+    const t = new Date(e.dated_on).getTime();
+    if (Number.isNaN(t)) return false;
+    return t > cutoff;
   });
 }
 

@@ -153,10 +153,73 @@ export async function getValidToken(): Promise<string> {
   return tokens.access_token;
 }
 
+// ---------- Resilient fetch ----------
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Exponential backoff with jitter, capped so a retry storm can't blow the
+// function's maxDuration. 0.5s, 1s, 2s, 4s, 8s (+ up to 250ms jitter).
+function backoffMs(attempt: number): number {
+  return Math.min(8000, 500 * 2 ** attempt) + Math.floor(Math.random() * 250);
+}
+
+// FreeAgent sends Retry-After on 429 (seconds or an HTTP date). Honour it,
+// capped at 30s so we never hang a request indefinitely.
+function retryAfterMs(res: Response): number | null {
+  const h = res.headers.get("retry-after");
+  if (!h) return null;
+  const secs = Number(h);
+  if (Number.isFinite(secs)) return Math.min(30_000, Math.max(0, secs * 1000));
+  const when = Date.parse(h);
+  if (!Number.isNaN(when)) return Math.min(30_000, Math.max(0, when - Date.now()));
+  return null;
+}
+
+// fetch() wrapper with a FreeAgent-aware retry policy. Headers/auth stay the
+// caller's responsibility so token reuse (e.g. the reconcile pass) still works.
+//
+// Retry rules — deliberately conservative to avoid creating duplicates:
+//   • 429 (rate limited): ALWAYS retried — the request was rejected, never
+//     applied, so it's safe for any method. Respects Retry-After.
+//   • 5xx / network error: retried ONLY for idempotent methods (GET/PUT/DELETE).
+//     A POST may have been applied server-side before the failure surfaced, so
+//     retrying it could double-book — we surface the error instead.
+export async function faFetch(
+  url: string,
+  init: RequestInit = {},
+  opts: { retries?: number } = {},
+): Promise<Response> {
+  const retries = opts.retries ?? 3;
+  const method = (init.method ?? "GET").toUpperCase();
+  const idempotent = method === "GET" || method === "PUT" || method === "DELETE";
+
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch (err) {
+      // No response at all — only safe to retry idempotent methods.
+      if (!idempotent || attempt >= retries) throw err;
+      await sleep(backoffMs(attempt));
+      continue;
+    }
+
+    if (res.status === 429 && attempt < retries) {
+      await sleep(retryAfterMs(res) ?? backoffMs(attempt));
+      continue;
+    }
+    if (res.status >= 500 && idempotent && attempt < retries) {
+      await sleep(backoffMs(attempt));
+      continue;
+    }
+    return res;
+  }
+}
+
 export async function api<T = unknown>(path: string): Promise<T> {
   const token = await getValidToken();
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-  const res = await fetch(url, {
+  const res = await faFetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
@@ -176,7 +239,7 @@ export async function apiSend<T = unknown>(
 ): Promise<T> {
   const token = await getValidToken();
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-  const res = await fetch(url, {
+  const res = await faFetch(url, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,

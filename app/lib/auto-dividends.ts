@@ -200,13 +200,20 @@ export async function runAutoDividends(opts: { commit?: boolean } = {}): Promise
           description: "Dividend",
         },
       });
-      updatedLog.push({
-        id: `auto-${c.date}-${Math.round(c.amount)}`,
-        date: c.date,
-        amount: c.amount,
-        note: "Auto-recorded from bank transfer",
-        created_at: new Date().toISOString(),
-      });
+      // Key the log entry to the unique transaction, not date+amount — two
+      // same-day, same-value draws would otherwise collide onto one id. Skip
+      // if we somehow already have this txn so the record can't double-up.
+      const txnId = c.txn_url.split("/").filter(Boolean).pop() ?? `${c.date}-${Math.round(c.amount)}`;
+      const dividendId = `auto-${txnId}`;
+      if (!updatedLog.some((d) => d.id === dividendId)) {
+        updatedLog.push({
+          id: dividendId,
+          date: c.date,
+          amount: c.amount,
+          note: "Auto-recorded from bank transfer",
+          created_at: new Date().toISOString(),
+        });
+      }
       yearRunning += c.amount;
       committed.push({ txn_url: c.txn_url, amount: c.amount, date: c.date, result: "booked" });
     } catch (e) {
