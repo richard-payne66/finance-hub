@@ -10,11 +10,14 @@ export const maxDuration = 300;
 // our DB — orphans left behind by an earlier DB-only deletion that
 // happened before the FA-aware DELETE endpoint was deployed.
 //
-// GET  → preview (returns the orphan list, doesn't delete)
-// POST → preview + delete each orphan from FA
+// GET            → preview (returns the orphan list, doesn't delete)
+// POST           → dry-run preview (same as GET) — deletes NOTHING
+// POST ?commit=true → preview + delete each orphan from FA
 //
-// Safety: only considers expenses created in the last 90 days, so a
-// pre-existing FA expense the user added manually won't be touched.
+// Safety: (1) only considers expenses created in the last 90 days, so a
+// pre-existing FA expense the user added manually won't be touched; (2) the
+// DELETE is irreversible accounting data, so it only fires with the explicit
+// ?commit=true flag — a bare POST can never destroy anything by accident.
 
 type FaExpenseRow = {
   url: string;
@@ -72,9 +75,27 @@ export async function GET() {
   }
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
+    const commit = new URL(req.url).searchParams.get("commit") === "true";
     const orphans = await findOrphans();
+
+    // Deleting expenses from FreeAgent is irreversible. A bare POST is a
+    // dry-run — you must opt in with ?commit=true to actually delete.
+    if (!commit) {
+      return NextResponse.json({
+        committed: false,
+        note: "Dry run — nothing deleted. Re-POST with ?commit=true to delete these from FreeAgent.",
+        orphan_count: orphans.length,
+        preview: orphans.slice(0, 50).map((e) => ({
+          url: e.url,
+          description: e.description,
+          gross_value: e.gross_value,
+          dated_on: e.dated_on,
+        })),
+      });
+    }
+
     const results: Array<{ url: string; ok: boolean; error?: string }> = [];
     for (const o of orphans) {
       try {
@@ -89,6 +110,7 @@ export async function POST(_req: NextRequest) {
       }
     }
     return NextResponse.json({
+      committed: true,
       total: results.length,
       deleted: results.filter((r) => r.ok).length,
       failed: results.filter((r) => !r.ok).length,

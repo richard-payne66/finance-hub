@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadAuditLog, type AuditEntry } from "@/app/lib/audit-log";
+import { loadAuditLog, replaceAuditEntry, type AuditEntry } from "@/app/lib/audit-log";
 import { getValidToken } from "@/app/lib/freeagent";
 import { getCategories } from "@/app/lib/fa-categories";
 import { upsertRule } from "@/app/lib/category-rules";
-import { db } from "@/app/lib/db";
 
 // Approve a queued bank transaction. Two paths depending on what FA has:
 //
@@ -159,8 +158,7 @@ export async function POST(req: NextRequest) {
       fa_explanation_url: outcome.explanation_url || entry.fa_explanation_url,
       reasoning: `${entry.reasoning} [manually approved${overrideCategory && overrideCategory !== entry.category_url ? ` with override to ${categoryName}` : ""}]`.trim(),
     };
-    log[idx] = updated;
-    await db().from("kv").upsert({ key: "auto_categorisations_log", value: JSON.stringify(log) });
+    await replaceAuditEntry(updated);
 
     // Teach the rule — if user overrode the category, this corrects it.
     if (categoryName) {

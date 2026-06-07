@@ -65,6 +65,24 @@ async function buildAttachment(
   };
 }
 
+// Record the approval + FA link in our DB, retrying transient failures. This
+// is the keystone of push idempotency: if we created the expense in FA but
+// never store its URL, the next approve would create a SECOND one.
+async function persistApproval(id: string, url: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { error } = await db()
+      .from("receipts")
+      .update({
+        status: "approved",
+        freeagent_url: url,
+        pushed_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (!error) return true;
+  }
+  return false;
+}
+
 let _cachedUserUrl: string | null = null;
 
 async function getUserUrl(): Promise<string> {
@@ -204,19 +222,31 @@ export async function approveReceipt(
     // instead of creating a second expense line. That makes the
     // "Push again to FA" button + a forced re-approve idempotent
     // and lets us correct earlier wrong-signed pushes.
+    const isForcedUpdate = !!(opts.force && r.freeagent_url);
     const fa: FaExpenseResponse =
-      opts.force && r.freeagent_url
-        ? await faApiSend<FaExpenseResponse>(r.freeagent_url, "PUT", payload).then(() => ({ expense: { url: r.freeagent_url! } }))
+      isForcedUpdate
+        ? await faApiSend<FaExpenseResponse>(r.freeagent_url!, "PUT", payload).then(() => ({ expense: { url: r.freeagent_url! } }))
         : await faApiSend<FaExpenseResponse>("/expenses", "POST", payload);
 
-    await db()
-      .from("receipts")
-      .update({
-        status: "approved",
-        freeagent_url: fa.expense.url,
-        pushed_at: new Date().toISOString(),
-      })
-      .eq("id", r.id);
+    // Persist the FA link, and if we can't, undo so we never leave an
+    // unrecorded expense behind (which a later approve would duplicate).
+    const persisted = await persistApproval(r.id, fa.expense.url);
+    if (!persisted) {
+      if (!isForcedUpdate) {
+        // We just created this expense — roll it back so FA matches our DB.
+        await faApiSend(fa.expense.url, "DELETE").catch(() => {});
+        return {
+          ok: false,
+          pushed: false,
+          reason: "Pushed to FreeAgent but couldn't save the link locally — rolled back the FA expense. Please retry.",
+        };
+      }
+      return {
+        ok: false,
+        pushed: false,
+        reason: `Updated FreeAgent but couldn't save the link locally (${fa.expense.url}).`,
+      };
+    }
 
     // Teach the system this supplier→category for next time. Now when
     // a new Anthropic receipt lands, it auto-picks Computer Software

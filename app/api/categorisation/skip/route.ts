@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadAuditLog } from "@/app/lib/audit-log";
-import { db } from "@/app/lib/db";
+import { loadAuditLog, replaceAuditEntry } from "@/app/lib/audit-log";
 import { errorResponse } from "@/app/lib/api-helpers";
 
 // Mark a queued entry as 'skipped_personal' so it stops showing in the
@@ -11,10 +10,9 @@ export async function POST(req: NextRequest) {
     const { id } = await req.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
     const log = await loadAuditLog();
-    const idx = log.findIndex((e) => e.id === id);
-    if (idx < 0) return NextResponse.json({ error: "not found" }, { status: 404 });
-    log[idx] = { ...log[idx], action: "skipped_personal" };
-    await db().from("kv").upsert({ key: "auto_categorisations_log", value: JSON.stringify(log) });
+    const entry = log.find((e) => e.id === id);
+    if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+    await replaceAuditEntry({ ...entry, action: "skipped_personal" });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return errorResponse(err);

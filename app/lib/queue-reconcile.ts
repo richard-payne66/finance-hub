@@ -16,10 +16,10 @@
 // This is what makes the queue self-cleaning and pushes the system
 // toward full automation.
 
-import { loadAuditLog, type AuditEntry } from "@/app/lib/audit-log";
+import { loadAuditLog, AUDIT_LOG_KEY, type AuditEntry } from "@/app/lib/audit-log";
 import { getValidToken } from "@/app/lib/freeagent";
 import { lookupRule } from "@/app/lib/category-rules";
-import { db } from "@/app/lib/db";
+import { mutateKvJson } from "@/app/lib/kv";
 
 type FaStatus =
   | { status: "explained" }
@@ -152,18 +152,20 @@ export async function reconcileQueue(opts?: { max?: number }): Promise<Reconcile
 
   let resolved = 0;
   let autoApplied = 0;
+  // Collect the entries we changed (keyed by id) and apply them at the end in
+  // one CAS merge, rather than overwriting the whole log from a stale snapshot
+  // after these slow FA round-trips — which would clobber concurrent writers.
+  const updates = new Map<string, AuditEntry>();
 
   await mapLimit(toCheck, 6, async (entry) => {
     const st = await faTxnStatus(entry.bank_transaction_url, token);
-    const idx = log.findIndex((e) => e.id === entry.id);
-    if (idx < 0) return;
 
     if (st.status === "explained" || st.status === "gone") {
-      log[idx] = {
-        ...log[idx],
+      updates.set(entry.id, {
+        ...entry,
         action: "auto_applied",
-        reasoning: `${log[idx].reasoning} [resolved — already handled in FreeAgent]`.trim(),
-      };
+        reasoning: `${entry.reasoning} [resolved — already handled in FreeAgent]`.trim(),
+      });
       resolved++;
       return;
     }
@@ -185,27 +187,27 @@ export async function reconcileQueue(opts?: { max?: number }): Promise<Reconcile
     });
     if (exUrl === null) return; // hard failure — keep for manual review
 
-    log[idx] = {
-      ...log[idx],
+    updates.set(entry.id, {
+      ...entry,
       action: "auto_applied",
       category_url: rule.category_url,
       category_name: rule.category_name,
       confidence: 1,
-      fa_explanation_url: exUrl || log[idx].fa_explanation_url,
+      fa_explanation_url: exUrl || entry.fa_explanation_url,
       reasoning: `Auto-applied learned rule for "${rule.vendor}" (booked to FreeAgent).`,
-    };
+    });
     autoApplied++;
   });
 
-  if (resolved > 0 || autoApplied > 0) {
-    await db().from("kv").upsert({
-      key: "auto_categorisations_log",
-      value: JSON.stringify(log),
-    });
+  let finalLog = log;
+  if (updates.size > 0) {
+    finalLog = await mutateKvJson<AuditEntry[]>(AUDIT_LOG_KEY, (current) =>
+      (current ?? log).map((e) => updates.get(e.id) ?? e),
+    );
   }
 
   return {
-    queue: log.filter((e) => e.action === "queued_for_review"),
+    queue: finalLog.filter((e) => e.action === "queued_for_review"),
     resolved,
     auto_applied: autoApplied,
     checked: toCheck.length,

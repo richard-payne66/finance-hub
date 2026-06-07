@@ -3,9 +3,12 @@
 // JS client.
 
 import { db } from "@/app/lib/db";
+import { mutateKvJson } from "@/app/lib/kv";
 
-const KV_KEY = "auto_categorisations_log";
-const MAX_ENTRIES = 500;
+export const AUDIT_LOG_KEY = "auto_categorisations_log";
+const KV_KEY = AUDIT_LOG_KEY;
+export const AUDIT_MAX_ENTRIES = 500;
+const MAX_ENTRIES = AUDIT_MAX_ENTRIES;
 
 export type AuditAction = "auto_applied" | "queued_for_review" | "skipped_personal" | "error";
 
@@ -33,9 +36,23 @@ export async function loadAuditLog(): Promise<AuditEntry[]> {
 }
 
 export async function appendAuditEntries(entries: AuditEntry[]): Promise<void> {
-  const existing = await loadAuditLog();
-  const merged = [...entries, ...existing].slice(0, MAX_ENTRIES);
-  await db().from("kv").upsert({ key: KV_KEY, value: JSON.stringify(merged) });
+  await mutateKvJson<AuditEntry[]>(KV_KEY, (current) =>
+    [...entries, ...(current ?? [])].slice(0, MAX_ENTRIES),
+  );
+}
+
+// Replace a single entry (matched by id) against the CURRENT log, not a stale
+// snapshot — so a concurrent writer's other changes survive. Used by the
+// approve / correct / skip routes after they've done their FreeAgent write.
+export async function replaceAuditEntry(updated: AuditEntry): Promise<void> {
+  await mutateKvJson<AuditEntry[]>(KV_KEY, (current) => {
+    const list = current ?? [];
+    const i = list.findIndex((e) => e.id === updated.id);
+    if (i < 0) return [updated, ...list].slice(0, MAX_ENTRIES);
+    const next = list.slice();
+    next[i] = updated;
+    return next;
+  });
 }
 
 export function summarise(entries: AuditEntry[], windowDays = 7): {

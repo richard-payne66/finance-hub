@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadAuditLog, type AuditEntry } from "@/app/lib/audit-log";
+import { loadAuditLog, replaceAuditEntry, type AuditEntry } from "@/app/lib/audit-log";
 import { api as faApi, apiSend } from "@/app/lib/freeagent";
 import { getCategories } from "@/app/lib/fa-categories";
 import { upsertRule, removeRule } from "@/app/lib/category-rules";
-import { db } from "@/app/lib/db";
 import { errorResponse } from "@/app/lib/api-helpers";
 
 // Correct something the system auto-filed.
@@ -62,15 +61,14 @@ export async function POST(req: NextRequest) {
       // Forget the learned rule so we don't auto-file this vendor again.
       await removeRule(entry.txn_description);
 
-      log[idx] = {
+      await replaceAuditEntry({
         ...entry,
         action: "skipped_personal",
         category_url: null,
         category_name: null,
         fa_explanation_url: null,
         reasoning: `${entry.reasoning} [you marked this personal]`.trim(),
-      };
-      await db().from("kv").upsert({ key: "auto_categorisations_log", value: JSON.stringify(log) });
+      });
       return NextResponse.json({ ok: true, action: "marked_personal" });
     }
 
@@ -98,13 +96,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `FreeAgent rejected the change: ${msg}` }, { status: 502 });
     }
 
-    log[idx] = {
+    await replaceAuditEntry({
       ...entry,
       category_url: newCategory,
       category_name: newName,
       reasoning: `${entry.reasoning} [you re-categorised this]`.trim(),
-    };
-    await db().from("kv").upsert({ key: "auto_categorisations_log", value: JSON.stringify(log) });
+    });
 
     // Re-teach: next time this vendor appears, use the corrected category.
     if (newName) {

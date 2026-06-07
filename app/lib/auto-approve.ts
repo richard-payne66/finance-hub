@@ -13,8 +13,8 @@
 import { api as faApi, apiSend } from "@/app/lib/freeagent";
 import { getCategories } from "@/app/lib/fa-categories";
 import { loadRules, vendorKey } from "@/app/lib/category-rules";
-import { loadAuditLog, type AuditEntry } from "@/app/lib/audit-log";
-import { db } from "@/app/lib/db";
+import { loadAuditLog, AUDIT_LOG_KEY, type AuditEntry } from "@/app/lib/audit-log";
+import { mutateKvJson } from "@/app/lib/kv";
 import { randomUUID } from "crypto";
 
 // Amount above which we ALWAYS ask the human, even for a confident guess.
@@ -143,12 +143,16 @@ export async function autoApproveGuesses(): Promise<AutoApproveResult> {
     }
   }
 
-  // Persist: drop stale queued entries for txns we just re-decided, then prepend new ones.
+  // Persist: drop stale queued entries for txns we just re-decided, then
+  // prepend new ones — merged against the CURRENT log (CAS) so a concurrent
+  // user action or the reconcile pass isn't clobbered.
   if (newEntries.length > 0) {
     const reprocessed = new Set(newEntries.map((e) => e.bank_transaction_url));
-    const kept = log.filter((e) => !(e.action === "queued_for_review" && reprocessed.has(e.bank_transaction_url)));
-    const merged = [...newEntries, ...kept].slice(0, 500);
-    await db().from("kv").upsert({ key: "auto_categorisations_log", value: JSON.stringify(merged) });
+    await mutateKvJson<AuditEntry[]>(AUDIT_LOG_KEY, (current) => {
+      const cur = current ?? [];
+      const kept = cur.filter((e) => !(e.action === "queued_for_review" && reprocessed.has(e.bank_transaction_url)));
+      return [...newEntries, ...kept].slice(0, 500);
+    });
   }
 
   return result;

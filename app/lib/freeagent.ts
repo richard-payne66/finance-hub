@@ -86,6 +86,23 @@ async function refresh(tokens: TokenSet): Promise<TokenSet> {
   return refreshed;
 }
 
+// Single-flight guard. FreeAgent ROTATES the refresh token on every use,
+// so two concurrent refreshes race: the first rotates the token, the second
+// presents an already-spent token and gets invalid_grant — which surfaces as
+// a spurious 401. The dashboard fires several FA calls in parallel
+// (e.g. dashboard-stats does Promise.all of ~6), so right after the hourly
+// access token expires they would all try to refresh at once. Funnelling them
+// through one in-flight promise means at most ONE refresh happens per process.
+let _refreshInFlight: Promise<TokenSet> | null = null;
+
+function refreshSingleFlight(tokens: TokenSet): Promise<TokenSet> {
+  if (_refreshInFlight) return _refreshInFlight;
+  _refreshInFlight = refresh(tokens).finally(() => {
+    _refreshInFlight = null;
+  });
+  return _refreshInFlight;
+}
+
 // ---------- Token storage ----------
 
 async function saveTokens(t: TokenSet) {
@@ -114,8 +131,24 @@ export async function getValidToken(): Promise<string> {
   const tokens = await loadTokens();
   if (!tokens) throw new Error("FreeAgent not connected.");
   if (tokens.expires_at - Date.now() < 60_000) {
-    const refreshed = await refresh(tokens);
-    return refreshed.access_token;
+    try {
+      const refreshed = await refreshSingleFlight(tokens);
+      return refreshed.access_token;
+    } catch (err) {
+      // Cross-instance race: another serverless instance may have refreshed
+      // (and rotated the token) just before us, invalidating the refresh token
+      // we hold. Re-read from storage once — if a newer, still-valid token is
+      // now there, use it rather than failing the request.
+      const latest = await loadTokens();
+      if (
+        latest &&
+        latest.access_token !== tokens.access_token &&
+        latest.expires_at - Date.now() > 60_000
+      ) {
+        return latest.access_token;
+      }
+      throw err;
+    }
   }
   return tokens.access_token;
 }

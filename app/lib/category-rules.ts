@@ -6,6 +6,7 @@
 // skip the Claude call entirely.
 
 import { db } from "@/app/lib/db";
+import { mutateKvJson } from "@/app/lib/kv";
 
 const KV_KEY = "category_rules";
 
@@ -69,32 +70,36 @@ export async function upsertRule(args: {
 }): Promise<void> {
   const vendor = vendorKey(args.description);
   if (!vendor) return;
-
-  const rules = await loadRules();
-  const idx = rules.findIndex((r) => r.vendor === vendor);
   const now = new Date().toISOString();
 
-  if (idx >= 0) {
-    rules[idx].category_url = args.category_url;
-    rules[idx].category_name = args.category_name;
-    rules[idx].hits += 1;
-    rules[idx].last_used = now;
-    rules[idx].raw_pattern = args.description.slice(0, 30);
-  } else {
-    rules.push({
-      vendor,
-      raw_pattern: args.description.slice(0, 30),
-      category_url: args.category_url,
-      category_name: args.category_name,
-      hits: 1,
-      last_used: now,
-      created_at: now,
-    });
-  }
-
-  // Cap at 200 most-recently-used rules
-  rules.sort((a, b) => b.last_used.localeCompare(a.last_used));
-  await saveRules(rules.slice(0, 200));
+  // CAS read-modify-write so two corrections at once don't lose a rule.
+  await mutateKvJson<CategoryRule[]>(KV_KEY, (current) => {
+    const rules = (current ?? []).slice();
+    const idx = rules.findIndex((r) => r.vendor === vendor);
+    if (idx >= 0) {
+      rules[idx] = {
+        ...rules[idx],
+        category_url: args.category_url,
+        category_name: args.category_name,
+        hits: rules[idx].hits + 1,
+        last_used: now,
+        raw_pattern: args.description.slice(0, 30),
+      };
+    } else {
+      rules.push({
+        vendor,
+        raw_pattern: args.description.slice(0, 30),
+        category_url: args.category_url,
+        category_name: args.category_name,
+        hits: 1,
+        last_used: now,
+        created_at: now,
+      });
+    }
+    // Cap at 200 most-recently-used rules
+    rules.sort((a, b) => b.last_used.localeCompare(a.last_used));
+    return rules.slice(0, 200);
+  });
 }
 
 // Forget the rule for a vendor — used when the user corrects an auto-filed
@@ -102,9 +107,9 @@ export async function upsertRule(args: {
 export async function removeRule(description: string): Promise<void> {
   const vendor = vendorKey(description);
   if (!vendor) return;
-  const rules = await loadRules();
-  const next = rules.filter((r) => r.vendor !== vendor);
-  if (next.length !== rules.length) await saveRules(next);
+  await mutateKvJson<CategoryRule[]>(KV_KEY, (current) =>
+    (current ?? []).filter((r) => r.vendor !== vendor),
+  );
 }
 
 export async function lookupRule(description: string): Promise<CategoryRule | null> {
