@@ -15,6 +15,7 @@ import { getCategories } from "@/app/lib/fa-categories";
 import { loadRules, vendorKey } from "@/app/lib/category-rules";
 import { loadAuditLog, AUDIT_LOG_KEY, type AuditEntry } from "@/app/lib/audit-log";
 import { mutateKvJson } from "@/app/lib/kv";
+import { getAccountantHint } from "@/app/lib/accountant-rules";
 import { randomUUID } from "crypto";
 
 // Amount above which we ALWAYS ask the human, even for a confident guess.
@@ -111,7 +112,15 @@ export async function autoApproveGuesses(): Promise<AutoApproveResult> {
     const rule = ruleByVendor.get(vendorKey(desc));
     const ruleAgrees = !!rule && rule.category_url === g.category;
     const trusted = !!g.guess_rule_name && TRUSTED_GUESS_RULES.has(g.guess_rule_name);
-    const confident = ruleAgrees || trusted;
+
+    // Accountant-rule match: if Sukh's guidance agrees with FA's guess, treat as confident.
+    const hint = getAccountantHint(desc);
+    const hintAgrees = !!hint &&
+      hint.confidence >= 0.85 &&
+      catName != null &&
+      catName.toLowerCase().includes(hint.category_name_fragment.toLowerCase());
+
+    const confident = ruleAgrees || trusted || hintAgrees;
 
     // ── decide ──
     let hold: string | null = null;
@@ -131,7 +140,11 @@ export async function autoApproveGuesses(): Promise<AutoApproveResult> {
     }
 
     // ── approve: confirm FA's guess in place (PUT marked_for_review:false) ──
-    const why = ruleAgrees ? `matches your saved rule for "${rule!.vendor}"` : `FreeAgent ${g.guess_rule_name === "invoice_rule" ? "matched it to an invoice" : "matched your past categorisations"}`;
+    const why = ruleAgrees
+      ? `matches your saved rule for "${rule!.vendor}"`
+      : hintAgrees
+      ? `accountant guidance: ${hint!.reason}`
+      : `FreeAgent ${g.guess_rule_name === "invoice_rule" ? "matched it to an invoice" : "matched your past categorisations"}`;
     try {
       await apiSend(g.url, "PUT", { bank_transaction_explanation: { category: g.category, marked_for_review: false } });
       result.approved++;

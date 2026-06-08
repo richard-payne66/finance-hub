@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AuditEntry } from "@/app/lib/audit-log";
+import { getAccountantHint } from "@/app/lib/accountant-rules";
 
 type Cat = {
   url: string;
@@ -15,22 +16,52 @@ const GBP = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
 
-export default function ReviewQueue() {
+export default function ReviewQueue(
+  { hideWhenEmpty = false, heading }: { hideWhenEmpty?: boolean; heading?: string } = {}
+) {
   const [queue, setQueue] = useState<AuditEntry[]>([]);
   const [categories, setCategories] = useState<Cat[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  // Tracks which overrides came from accountant guidance (vs user choice)
+  const [hintIds, setHintIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
   const [reconcile, setReconcile] = useState<{ resolved: number; auto_applied: number } | null>(null);
+
+  function applyAccountantHints(entries: AuditEntry[], cats: Cat[]) {
+    const pre: Record<string, string> = {};
+    const hints = new Set<string>();
+    for (const e of entries) {
+      // Only apply hint when FA has no guess or the entry has low confidence
+      if (e.category_url && e.confidence >= 0.75) continue;
+      const hint = getAccountantHint(e.txn_description);
+      if (!hint) continue;
+      // Find the matching FA category by description substring
+      const match = cats.find(
+        (c) => c.description.toLowerCase().includes(hint.category_name_fragment.toLowerCase())
+      );
+      if (match && match.url !== e.category_url) {
+        pre[e.id] = match.url;
+        hints.add(e.id);
+      }
+    }
+    if (Object.keys(pre).length > 0) {
+      setOverrides((o) => ({ ...pre, ...o })); // don't stomp manual overrides already set
+      setHintIds((h) => new Set([...h, ...hints]));
+    }
+  }
 
   function load() {
     setLoading(true);
     fetch("/api/categorisation/list")
       .then((r) => r.json())
       .then((j) => {
-        setQueue(j.queue ?? []);
-        setCategories(j.categories ?? []);
+        const entries: AuditEntry[] = j.queue ?? [];
+        const cats: Cat[] = j.categories ?? [];
+        setQueue(entries);
+        setCategories(cats);
+        applyAccountantHints(entries, cats);
         const r = j.reconcile;
         setReconcile(r && (r.resolved > 0 || r.auto_applied > 0) ? r : null);
       })
@@ -93,7 +124,7 @@ export default function ReviewQueue() {
   }, [queue, filter]);
 
   if (loading) {
-    return <p className="text-sm text-muted/60">Loading…</p>;
+    return hideWhenEmpty ? null : <p className="text-sm text-muted/60">Loading…</p>;
   }
   const reconcileNote = reconcile ? (
     <p className="text-xs text-primary/80 mb-4 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
@@ -106,6 +137,7 @@ export default function ReviewQueue() {
   ) : null;
 
   if (queue.length === 0) {
+    if (hideWhenEmpty) return null; // keep the dashboard clean when nothing needs review
     return (
       <div>
         {reconcileNote}
@@ -121,7 +153,12 @@ export default function ReviewQueue() {
   }
 
   return (
-    <div>
+    <div className={hideWhenEmpty ? "mb-6" : ""}>
+      {heading && (
+        <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-3">
+          {heading}
+        </p>
+      )}
       {reconcileNote}
       <div className="flex items-center justify-between gap-3 mb-4">
         <input
@@ -147,7 +184,12 @@ export default function ReviewQueue() {
             entry={e}
             categories={categories}
             override={overrides[e.id]}
-            onOverrideChange={(v) => setOverrides((o) => ({ ...o, [e.id]: v }))}
+            isAccountantHint={hintIds.has(e.id) && !overrides[e.id + "_user"]}
+            onOverrideChange={(v) => {
+              setOverrides((o) => ({ ...o, [e.id]: v }));
+              // Mark as user-chosen so we no longer show the hint badge
+              setHintIds((h) => { const n = new Set(h); n.delete(e.id); return n; });
+            }}
             onApprove={() => approve(e.id, overrides[e.id] || undefined)}
             onSkip={() => skip(e.id)}
             busy={busyId === e.id}
@@ -162,6 +204,7 @@ function ReviewCard({
   entry: e,
   categories,
   override,
+  isAccountantHint,
   onOverrideChange,
   onApprove,
   onSkip,
@@ -170,6 +213,7 @@ function ReviewCard({
   entry: AuditEntry;
   categories: Cat[];
   override: string | undefined;
+  isAccountantHint: boolean;
   onOverrideChange: (v: string) => void;
   onApprove: () => void;
   onSkip: () => void;
@@ -241,7 +285,14 @@ function ReviewCard({
       {/* Override picker — defaults to frequently-used; toggle for all */}
       <label className="block">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[9px] uppercase tracking-widest font-bold text-muted/60">Category to apply</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] uppercase tracking-widest font-bold text-muted/60">Category to apply</span>
+            {isAccountantHint && (
+              <span className="text-[9px] font-bold uppercase tracking-widest bg-amber-400/15 text-amber-400 border border-amber-400/30 rounded-full px-2 py-0.5">
+                📋 Sukh says
+              </span>
+            )}
+          </div>
           {frequentCount > 0 && (
             <button
               type="button"

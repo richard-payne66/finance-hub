@@ -1,23 +1,11 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import ButlerBriefing from "./components/ButlerBriefing";
-import BacklogSection from "./components/BacklogSection";
-import HMRCPanel from "./components/HMRCPanel";
-import DataHealthPanel from "./components/DataHealthPanel";
 import ForecastPanel from "./components/ForecastPanel";
-import OptimisationsPanel from "./components/OptimisationsPanel";
-import AutoCategoriseCard from "./components/AutoCategoriseCard";
-import AnomaliesCard from "./components/AnomaliesCard";
-import DividendCard from "./components/DividendCard";
-import GmailQueueCard from "./components/GmailQueueCard";
-
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <p className="text-[9px] font-bold uppercase tracking-widest text-muted/40 px-1 mb-2 mt-1">
-      {children}
-    </p>
-  );
-}
+import DividendTracker from "./components/DividendTracker";
+import AllowancesCard from "./components/AllowancesCard";
+import HMRCLinksCard from "./components/HMRCLinksCard";
+import AccountantInbox from "./components/AccountantInbox";
+import ReviewQueue from "./review/ReviewQueue";
 
 export default function Home() {
   return (
@@ -26,90 +14,51 @@ export default function Home() {
         <div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">FINANCE HUB</h1>
           <p className="text-xs text-muted/70 mt-1 max-w-md leading-relaxed">
-            Your safety net. Anything that needs you sits up top — everything below,
-            I&apos;m already handling. So you never have to wonder if it got done.
+            Your safety net. Anything that needs you sits up top — everything else
+            I&apos;m already handling.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.9.1</span>
-          <Link href="/digest" className="text-[10px] text-muted/50 hover:text-foreground transition-colors uppercase tracking-widest font-bold">
+          <span className="text-[9px] text-muted/40 uppercase tracking-widest font-mono shrink-0">v0.11.0</span>
+          <Link href="/year" className="text-[10px] text-primary hover:text-primary/70 transition-colors uppercase tracking-widest font-bold">
+            Year by year →
+          </Link>
+          <Link href="/how-it-works" className="text-[10px] text-primary hover:text-primary/70 transition-colors uppercase tracking-widest font-bold">
+            What I pay →
+          </Link>
+          <Link href="/digest" className="text-[10px] text-primary hover:text-primary/70 transition-colors uppercase tracking-widest font-bold">
             Monthly digest →
+          </Link>
+          <Link href="/receipts" className="text-[10px] text-muted/50 hover:text-foreground transition-colors uppercase tracking-widest font-bold">
+            Receipts →
           </Link>
         </div>
       </header>
 
-      {/* The butler's opening briefing: where you stand + what needs you + ask */}
+      {/* TOP: dividends taken this year + room before higher-rate tax */}
+      <DividendTracker />
+
+      {/* The butler's safety-net line: just what needs you (if anything). */}
       <ButlerBriefing />
 
-      {/* HERO: the actionable list of ways to save money — Richard's goal */}
+      {/* Bookkeeping that needs a decision — surfaced here, hidden when empty. */}
+      <div id="review-queue">
+        <ReviewQueue hideWhenEmpty heading="📒 Bookkeeping — needs a quick look" />
+      </div>
+
+      {/* Anything the accountant has asked Richard to do (AI-extracted from Gmail) */}
+      <AccountantInbox />
+
+      {/* Tax-free extras: trivial benefits + mileage trackers (moved higher) */}
+      <AllowancesCard />
+
+      {/* Upcoming bills (moved lower) */}
       <div className="mb-6">
-        <OptimisationsPanel />
+        <ForecastPanel />
       </div>
 
-      {/* ───────── YOUR MONEY: decisions + bills + what to pay yourself ───────── */}
-      <SectionLabel>Your money</SectionLabel>
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <ForecastPanel />
-        </div>
-        <Link
-          href="/capture"
-          className="bg-surface border border-white/8 rounded-2xl p-6 hover:border-primary/40 hover:bg-primary/5 transition-all flex flex-col items-center justify-center text-center gap-2 h-full min-h-[140px]"
-        >
-          <span className="text-4xl">📷</span>
-          <span className="text-sm font-bold uppercase tracking-widest text-foreground">
-            Capture Receipt
-          </span>
-          <span className="text-[10px] text-muted/50">Tap to snap &amp; log</span>
-        </Link>
-      </div>
-      <div className="mb-6">
-        <DividendCard />
-      </div>
-
-      {/* ───────── WHAT I'M HANDLING: quiet reassurance, speaks up only if needed ───────── */}
-      <SectionLabel>What I&apos;m handling for you</SectionLabel>
-      {/* Anomalies — quiet unless something is up */}
-      <div className="mb-4">
-        <AnomaliesCard />
-      </div>
-      {/* Auto-categorisation activity */}
-      <div className="mb-4">
-        <AutoCategoriseCard />
-      </div>
-      {/* Gmail queue — only renders if pending */}
-      <div className="mb-6">
-        <GmailQueueCard />
-      </div>
-
-      {/* ───────── DETAIL ON DEMAND ───────── */}
-      <details className="mb-4 group">
-        <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-3 bg-surface border border-white/8 rounded-2xl hover:border-white/15 transition-colors">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-            Detailed breakdown
-          </span>
-          <span className="text-[10px] text-muted/40 font-mono group-open:hidden">Show ▾</span>
-          <span className="text-[10px] text-muted/40 font-mono hidden group-open:inline">Hide ▴</span>
-        </summary>
-        <div className="mt-4 flex flex-col gap-4">
-          <HMRCPanel />
-          <DataHealthPanel />
-        </div>
-      </details>
-
-      {/* Notes & ideas — useful, but not something to look at every day */}
-      <details className="mb-4 group">
-        <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-3 bg-surface border border-white/8 rounded-2xl hover:border-white/15 transition-colors">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-            Notes &amp; ideas
-          </span>
-          <span className="text-[10px] text-muted/40 font-mono group-open:hidden">Show ▾</span>
-          <span className="text-[10px] text-muted/40 font-mono hidden group-open:inline">Hide ▴</span>
-        </summary>
-        <div className="mt-4">
-          <BacklogSection />
-        </div>
-      </details>
+      {/* Saved HMRC + Companies House links — pay / view without hunting around */}
+      <HMRCLinksCard />
     </main>
   );
 }

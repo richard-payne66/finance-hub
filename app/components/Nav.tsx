@@ -3,28 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const LINKS = [
+const BUSINESS_LINKS = [
   { href: "/", label: "Dashboard" },
-  { href: "/bookkeeping", label: "Bookkeeping" },
-  { href: "/receipts", label: "Receipts" },
-  { href: "/strategy", label: "Strategy" },
   { href: "/setup", label: "Setup" },
 ];
 
 export default function Nav() {
   const path = usePathname();
 
-  // No nav chrome on the login page — it's a full-screen gate.
   if (path === "/login") return null;
-  // Also hide on the share page (it's a public view for the accountant)
   if (path.startsWith("/share/")) return null;
-  // And on /capture — that's the receipts-only home-screen app view,
-  // every extra pixel is friction.
   if (path === "/capture") return null;
 
+  const onFamily = path.startsWith("/family");
+
   return (
-    <nav className="flex gap-1 flex-wrap px-4 sm:px-8 pt-5 pb-2 max-w-6xl mx-auto">
-      {LINKS.map((l) => {
+    <nav className="flex items-center gap-1 px-4 sm:px-8 pt-5 pb-2 max-w-6xl mx-auto">
+      {/* Business-mode pills — hidden when on family pages */}
+      {!onFamily && BUSINESS_LINKS.map((l) => {
         const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
         return (
           <Link
@@ -40,6 +36,21 @@ export default function Nav() {
           </Link>
         );
       })}
+
+      {/* Family-mode label */}
+      {onFamily && (
+        <span className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-full border bg-primary text-background border-primary">
+          Family
+        </span>
+      )}
+
+      {/* Toggle — far right */}
+      <Link
+        href={onFamily ? "/" : "/family"}
+        className="ml-auto text-[10px] font-bold uppercase tracking-widest text-muted/50 hover:text-foreground border border-white/10 hover:border-white/20 rounded-lg px-2.5 py-1.5 transition-all"
+      >
+        {onFamily ? "← Business" : "Family →"}
+      </Link>
     </nav>
   );
 }
